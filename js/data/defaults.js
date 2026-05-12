@@ -83,6 +83,7 @@ const DEFAULTS = {
   aiTools: [
     { id: 'cc-switch', label: 'CC-Switch', desc: 'ClaudeCode/Codex 提供商 MCP Skils管理工具', hasVersion: false, isScript: true },
     { id: 'claude-code', label: 'Claude Code', desc: 'Anthropic CLI 开发工具', hasVersion: true, defaultVersion: 'latest', npmPkg: '@anthropic-ai/claude-code', hasMcp: true },
+    { id: 'codex', label: 'Codex CLI', desc: 'OpenAI Codex 命令行开发工具', hasVersion: true, defaultVersion: 'latest', npmPkg: '@openai/codex' },
     { id: 'ccline', label: 'CCLine', desc: 'Claude Code 状态行工具', hasVersion: false, npmPkg: '@cometix/ccline', requiresTool: 'claude-code' },
     { id: 'claude-code-router', label: 'Claude Code Router', desc: '将Gemini/Openai格式转换为anthropic格式', hasVersion: false, npmPkg: '@musistudio/claude-code-router', requiresTool: 'claude-code' },
   ],
@@ -150,21 +151,6 @@ const DEFAULTS = {
     },
   ],
 
-  /* Claude Code 工作流预设
-   * 来自 github.com/UfoMiao/zcf 项目
-   * ZCF 工作流包含: 通用工具、六步开发流程、功能规划、Git 工作流、BMAD 企业级
-   */
-  claudeWorkflows: [
-    {
-      id: 'zcf',
-      label: 'ZCF 工作流',
-      desc: '来自 UfoMiao/zcf 项目，包含通用工具、六步开发、功能规划、Git 工作流、BMAD 企业级',
-      defaultSelected: false,
-      // ZCF 工作流安装时包含的所有子模块
-      subModules: ['commonTools', 'sixStepsWorkflow', 'featPlanUx', 'gitWorkflow', 'bmadWorkflow'],
-    },
-  ],
-
   /* Claude Code 输出样式预设
    * isCustom: 是否需要模板文件
    * - true: 需要复制模板文件到 ~/.claude/output-styles/
@@ -227,6 +213,123 @@ const DEFAULTS = {
     },
   ],
 
+  /* Codex AGENTS.md 输出样式 */
+  codexOutputStyles: [
+    {
+      id: 'default',
+      label: '默认',
+      desc: '面向容器开发环境的 Codex 默认指导',
+      isCustom: false,
+      agentsText: `# Codex 工作区指南
+
+你是运行在 Vibe Space 容器中的 Codex CLI。请优先遵循当前用户项目中的 AGENTS.md、README 和开发文档。
+
+## 工作原则
+
+- 先阅读相关文件，再修改代码。
+- 保持改动聚焦，避免无关重构。
+- 不主动执行 git commit、git push、git reset 或分支操作，除非用户明确要求。
+- 不写入真实 API Key、Token、SSH 私钥或其他敏感信息。
+- 生成器、脚本和配置改动完成后，给出可复现的验证步骤。
+
+## 项目约定
+
+- 纯静态项目保持无构建链风格。
+- JavaScript 使用 2 空格缩进、单引号和分号。
+- 注释语言与所在文件保持一致。
+- 新增远程地址优先集中到 js/data/urls.js。
+- 生成器保持纯函数形态：接收 config，返回字符串。`,
+    },
+    {
+      id: 'engineer-professional',
+      label: '工程师专业版（UfoMiao/zcf）',
+      desc: '遵循SOLID、KISS、DRY、YAGNI原则，专业简洁',
+      isCustom: true,
+    },
+    {
+      id: 'nekomata-engineer',
+      label: '猫又工程师（UfoMiao/zcf）',
+      desc: '可爱但专业的工程师风格',
+      isCustom: true,
+    },
+    {
+      id: 'laowang-engineer',
+      label: '老王工程师（UfoMiao/zcf）',
+      desc: '资深工程师风格，经验丰富',
+      isCustom: true,
+    },
+    {
+      id: 'ojousama-engineer',
+      label: '大小姐工程师（UfoMiao/zcf）',
+      desc: '优雅专业的工程师风格',
+      isCustom: true,
+    },
+    {
+      id: 'rem-engineer',
+      label: '雷姆工程师（UfoMiao/zcf）',
+      desc: '温柔专业的工程师风格',
+      isCustom: true,
+    },
+    {
+      id: 'leibus-engineer',
+      label: '雷布斯工程师（UfoMiao/zcf）',
+      desc: '极客风格的工程师',
+      isCustom: true,
+    },
+    {
+      id: 'explanatory',
+      label: '解释型（Claudecode官方提供）',
+      desc: '详细解释每一步操作',
+      isCustom: false,
+      agentsText: `# Codex 解释型输出样式
+
+你是运行在 Vibe Space 容器中的 Codex CLI。请用解释型风格协助开发。
+
+## 输出要求
+
+- 在执行关键操作前简要说明目的。
+- 修改代码后说明变更原因、影响范围和验证方式。
+- 遇到失败时说明失败原因、已验证的事实和下一步建议。
+- 保持说明聚焦当前任务，不展开无关背景。
+
+## 工作约束
+
+- 优先遵循用户项目中的 AGENTS.md、README 和开发文档。
+- 不主动执行 git commit、git push、git reset 或分支操作，除非用户明确要求。
+- 不写入真实 API Key、Token、SSH 私钥或其他敏感信息。`,
+    },
+    {
+      id: 'learning',
+      label: '学习型（Claudecode官方提供）',
+      desc: '适合学习新技术的风格',
+      isCustom: false,
+      agentsText: `# Codex 学习型输出样式
+
+你是运行在 Vibe Space 容器中的 Codex CLI。请用适合学习的方式协助开发。
+
+## 输出要求
+
+- 在给出方案时点明关键概念和选择理由。
+- 对非显而易见的代码改动补充简短解释。
+- 给出验证步骤时说明每一步验证了什么。
+- 保持内容简洁，避免把简单任务讲复杂。
+
+## 工作约束
+
+- 优先遵循用户项目中的 AGENTS.md、README 和开发文档。
+- 不主动执行 git commit、git push、git reset 或分支操作，除非用户明确要求。
+- 不写入真实 API Key、Token、SSH 私钥或其他敏感信息。`,
+    },
+    {
+      id: 'custom',
+      label: '自定义',
+      desc: '原样写入 /root/.codex/AGENTS.md',
+      isCustom: false,
+      isUserCustom: true,
+      agentsText: '',
+    },
+  ],
+
   vibeDefaultCommand: 'IS_SANDBOX=1 claude --dangerously-skip-permissions',
 
   /* 预设模板 — 每个预设是一份完整的配置快照 */
@@ -239,8 +342,9 @@ const DEFAULTS = {
       customExtensions: '',
       languages: ['nodejs'], languageVersions: { nodejs: '24' },
       aiTools: ['cc-switch', 'claude-code'], aiToolVersions: {},
-      claudeWorkflows: [],
       claudeOutputStyle: 'default',
+      codexOutputStyle: 'default',
+      codexCustomAgentsText: '',
       cfTunnel: false, cfToken: '', frpcEnabled: false, frpcConfigUrl: '', cnbProjectName: '', volumeMode: 'named',
       vibeCommand: true, vibeCommandText: 'IS_SANDBOX=1 claude --dangerously-skip-permissions',
       customDockerfile: '',
