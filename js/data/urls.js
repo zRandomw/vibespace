@@ -1,7 +1,7 @@
 /** urls.js — 全局远程资源 URL 注册表
  *
  * 项目中所有远程链接统一在此文件中定义，其他文件通过 URLS.* 引用。
- * 模板 URL 使用函数形式，例如: URLS.languages.nodejs.setup('20')
+ * 模板 URL 使用函数形式，例如: URLS.languages.go.download('1.23.6')
  */
 
 const URLS = {
@@ -37,11 +37,11 @@ const URLS = {
   /* 语言安装地址 */
   languages: {
     nodejs: {
-      /** @param {string} ver — 大版本号，如 '20' */
-      setup: (ver) => `https://deb.nodesource.com/setup_${ver}.x`,
+      nvmInstall: 'https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh',
+      nvmVersion: '0.40.3',
     },
     python: {
-      getPip: 'https://bootstrap.pypa.io/get-pip.py',
+      uvInstall: 'https://astral.sh/uv/install.sh',
     },
     go: {
       /** @param {string} ver — 完整版本号，如 '1.23.6' 或 Dockerfile 变量 '${GOLANG_VERSION}' */

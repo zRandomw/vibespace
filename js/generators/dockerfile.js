@@ -30,6 +30,11 @@ function generateDockerfile(config) {
   const pathParts = ['$PATH'];
   if (config.languages.includes('go')) pathParts.push('/usr/local/go/bin', '/root/go/bin');
   pathParts.push('/root/.local/bin');
+  if (config.needsNodejs) {
+    envVars.push('NVM_DIR=/root/.nvm', 'NVM_SYMLINK_CURRENT=true');
+    pathParts.push('/root/.nvm/current/bin');
+  }
+  if (config.languages.includes('python') && isChina) envVars.push(`UV_DEFAULT_INDEX=${mirrors.pip}`, `PIP_INDEX_URL=${mirrors.pip}`);
   if (config.languages.includes('rust')) pathParts.push('/root/.cargo/bin');
   envVars.push(`PATH=${pathParts.join(':')}`);
   lines.push('ENV ' + envVars.join(' \\\n    '));
@@ -37,11 +42,16 @@ function generateDockerfile(config) {
 
   // --- 层1: 系统包 ---
   const layer1 = [];
-  // 中国 apt 镜像源 (DNS 在 entrypoint 运行时配置，构建阶段 resolv.conf 只读)
-  if (isChina) layer1.push(mirrors.aptScript);
+  // 中国 apt 镜像源 (先确保 curl 可用；DNS 在 entrypoint 运行时配置，构建阶段 resolv.conf 只读)
+  if (isChina) {
+    layer1.push('apt-get update');
+    layer1.push('apt-get install -y --no-install-recommends ca-certificates curl');
+    layer1.push(mirrors.aptScript);
+  }
   layer1.push('apt-get update');
 
   const aptPkgs = new Set(['git', 'wget', 'unzip', 'curl', 'ca-certificates', 'openssh-server', 'openssh-client', 'vim', 'nano', 'rclone', 'zstd', 'cron']);
+  if (config.needsNodejs) aptPkgs.add('xz-utils');
   config.languages.forEach(langId => {
     const lang = DEFAULTS.languages.find(l => l.id === langId);
     if (!lang) return;
@@ -63,31 +73,7 @@ function generateDockerfile(config) {
       aptPkgs.add(cppVer === 'system' ? 'g++' : `g++-${cppVer}`);
     }
   });
-  // Python 指定版本时通过 deadsnakes PPA 安装，不走 apt 默认包
-  const pythonVer = config.languageVersions.python || 'system';
-  if (config.languages.includes('python') && pythonVer !== 'system') {
-    aptPkgs.delete('python3');
-    aptPkgs.delete('python3-pip');
-    aptPkgs.add('software-properties-common');
-  }
   layer1.push(`apt-get install -y --no-install-recommends \\\n        ${[...aptPkgs].sort().join(' ')}`);
-
-  if (config.needsNodejs) {
-    const nodeVer = config.languageVersions.nodejs || '20';
-    layer1.push(`curl -fsSL ${URLS.languages.nodejs.setup(nodeVer)} | bash -`);
-    layer1.push('apt-get install -y --no-install-recommends nodejs');
-  }
-  // Python: 指定版本通过 deadsnakes PPA 安装
-  if (config.languages.includes('python') && pythonVer !== 'system') {
-    layer1.push('add-apt-repository -y ppa:deadsnakes/ppa');
-    layer1.push('apt-get update');
-    layer1.push(`apt-get install -y --no-install-recommends python${pythonVer} python${pythonVer}-distutils`);
-    layer1.push(`update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${pythonVer} 1`);
-    layer1.push(`curl -sS ${URLS.languages.python.getPip} | python3`);
-  }
-  if (config.languages.includes('python') && isChina) {
-    layer1.push(`pip3 config set global.index-url ${mirrors.pip}`);
-  }
   layer1.push('apt-get autoremove -y', 'apt-get clean');
   lines.push('# 层1: 系统包 + 基础工具');
   lines.push('RUN ' + layer1.join(' \\\n    && '));
@@ -95,6 +81,18 @@ function generateDockerfile(config) {
 
   // --- 层2: 语言运行时 ---
   const runtime = [];
+  if (config.needsNodejs) {
+    const nodeVer = config.languages.includes('nodejs')
+      ? config.languageVersions.nodejs || DEFAULTS.languages.find(l => l.id === 'nodejs').defaultVersion
+      : '22';
+    runtime.push(`curl -o- ${URLS.languages.nodejs.nvmInstall} | bash`);
+    runtime.push(`. "$NVM_DIR/nvm.sh" && nvm install ${nodeVer} && nvm alias default ${nodeVer} && nvm use default`);
+  }
+  if (config.languages.includes('python')) {
+    const pythonVer = config.languageVersions.python || DEFAULTS.languages.find(l => l.id === 'python').defaultVersion;
+    runtime.push(`curl -LsSf ${URLS.languages.python.uvInstall} | sh`);
+    runtime.push(`uv python install ${pythonVer} --default`);
+  }
   if (config.languages.includes('go')) {
     const goUrl = isChina
       ? URLS.languages.go.downloadChina('${GOLANG_VERSION}')
@@ -104,10 +102,6 @@ function generateDockerfile(config) {
   if (config.languages.includes('rust')) {
     runtime.push(`curl --proto "=https" --tlsv1.2 -sSf ${URLS.languages.rust.rustup} | sh -s -- -y`);
     runtime.push('echo \'source $HOME/.cargo/env\' >> /root/.bashrc');
-  }
-  if (config.languages.includes('python') && config.pythonVenv) {
-    const pyVenvPkg = pythonVer !== 'system' ? `python${pythonVer}-venv` : 'python3-venv';
-    runtime.push(`apt-get update && apt-get install -y --no-install-recommends ${pyVenvPkg} && apt-get clean`);
   }
   if (runtime.length) {
     lines.push('# 层2: 语言运行时');

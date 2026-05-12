@@ -5,26 +5,32 @@ ENV LANG=C.UTF-8 \
     GOLANG_VERSION=1.23.6 \
     GOPATH=/root/go \
     GOPROXY=https://goproxy.cn,direct \
-    PATH=$PATH:/usr/local/go/bin:/root/go/bin:/root/.local/bin:/root/.cargo/bin
+    NVM_DIR=/root/.nvm \
+    NVM_SYMLINK_CURRENT=true \
+    UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PATH=$PATH:/usr/local/go/bin:/root/go/bin:/root/.local/bin:/root/.nvm/current/bin:/root/.cargo/bin
 
 # 层1: 系统包 + 基础工具
-RUN curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/ChangeMirrors.sh | bash -s -- --source mirrors.pku.edu.cn --protocol http --use-intranet-source false --backup false --upgrade-software false --clean-cache false --ignore-backup-tips \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/ChangeMirrors.sh | bash -s -- --source mirrors.pku.edu.cn --protocol http --use-intranet-source false --backup false --upgrade-software false --clean-cache false --ignore-backup-tips \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential ca-certificates cmake cron curl g++ gcc git make nano openjdk-21-jdk openssh-client openssh-server python3 python3-pip rclone unzip vim wget zstd \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+        build-essential ca-certificates cmake cron curl g++ gcc git make nano openjdk-21-jdk openssh-client openssh-server rclone unzip vim wget xz-utils zstd \
     && apt-get autoremove -y \
     && apt-get clean
 
 # 层2: 语言运行时
-RUN wget -q https://golang.google.cn/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz \
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
+    && . "$NVM_DIR/nvm.sh" && nvm install 24 && nvm alias default 24 && nvm use default \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && uv python install 3.12 --default \
+    && wget -q https://golang.google.cn/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz \
     && tar -C /usr/local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz \
     && rm -f go${GOLANG_VERSION}.linux-amd64.tar.gz \
     && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    && echo 'source $HOME/.cargo/env' >> /root/.bashrc \
-    && apt-get update && apt-get install -y --no-install-recommends python3-venv && apt-get clean
+    && echo 'source $HOME/.cargo/env' >> /root/.bashrc
 
 # 层3: 全局 npm 包
 RUN npm config set registry https://registry.npmmirror.com \

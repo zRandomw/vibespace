@@ -22,7 +22,6 @@ function appState() {
     customExtensions: '',
     languages: [],
     languageVersions: {},
-    pythonVenv: true,
     aiTools: [],
     aiToolVersions: {},
     claudeMcpServers: [],  // [{name: 'my-server', json: '{"type":"http","url":"..."}', jsonValid: true}]
@@ -72,7 +71,7 @@ function appState() {
       this.applyPreset('default');
       const watched = [
         'region', 'deployPlatform', 'codeServer', 'extensions', 'customExtensions',
-        'languages', 'languageVersions', 'pythonVenv',
+        'languages', 'languageVersions',
         'aiTools', 'aiToolVersions', 'claudeMcpServers',
         'claudeWorkflows', 'claudeOutputStyle', 'claudeDisableTelemetry',
         'gitUserName', 'gitUserEmail',
@@ -216,7 +215,6 @@ function appState() {
       this.customExtensions = p.customExtensions;
       this.languages = [...p.languages];
       this.languageVersions = { ...p.languageVersions };
-      this.pythonVenv = p.pythonVenv;
       this.aiTools = [...p.aiTools];
       this.aiToolVersions = { ...p.aiToolVersions };
       this.claudeMcpServers = p.claudeMcpServers ? p.claudeMcpServers.map(s => ({...s})) : [];
@@ -270,7 +268,7 @@ function appState() {
       return {
         region: this.region, deployPlatform: this.deployPlatform, baseImage: DEFAULTS.baseImage,
         codeServer: this.codeServer, extensions: this.extensions, customExtensions: this.customExtensions,
-        languages: this.languages, languageVersions: this.languageVersions, pythonVenv: this.pythonVenv,
+        languages: this.languages, languageVersions: this.languageVersions,
         aiTools: this.aiTools, aiToolVersions: this.aiToolVersions, claudeMcpServers: this.claudeMcpServers,
         claudeWorkflows: this.claudeWorkflows, claudeOutputStyle: this.claudeOutputStyle,
         claudeDisableTelemetry: this.claudeDisableTelemetry,

@@ -396,13 +396,6 @@
             </div>
             <!-- 安装方式说明 -->
             <p x-show="lang.installNote" class="text-xs text-gray-500 mt-1.5" x-text="'安装方式: ' + lang.installNote"></p>
-            <!-- Python 特有: venv 选项 -->
-            <template x-if="lang.id === 'python'">
-              <label class="flex items-center gap-2 text-sm cursor-pointer mt-2">
-                <input type="checkbox" x-model="pythonVenv" class="rounded border-gray-600 text-blue-600 bg-gray-800">
-                <span class="text-gray-300">安装 python3-venv (虚拟环境支持)</span>
-              </label>
-            </template>
             <!-- 用户自行确保提示 -->
             <div class="bg-yellow-950/20 border border-yellow-800/30 rounded-lg p-2 mt-2">
               <p class="text-xs text-yellow-300/80 flex items-center gap-1">
