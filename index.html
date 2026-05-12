@@ -538,35 +538,8 @@
           </template>
         </div>
 
-        <!-- Claude Code 工作流和输出样式选择 -->
-        <div x-show="hasAiTool('claude-code')" x-transition class="mt-6 max-w-2xl space-y-4">
-          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-            <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
-              <span>🔄</span> 预设工作流
-              <span class="text-xs text-gray-500 font-normal">选择要安装的工作流命令</span>
-            </h3>
-            <p class="text-xs text-gray-500 mb-3">ZCF 工作流将安装到 ~/.claude/commands/zcf/ 目录，通过 /zcf:命令名 调用</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <template x-for="workflow in DEFAULTS.claudeWorkflows" :key="workflow.id">
-                <label
-                  class="flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-sm transition-all"
-                  :class="hasClaudeWorkflow(workflow.id) ? 'border-blue-600 bg-blue-950/20' : 'border-gray-700 hover:border-gray-600'"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="hasClaudeWorkflow(workflow.id)"
-                    @change="toggleClaudeWorkflow(workflow.id)"
-                    class="rounded border-gray-600 text-blue-600 bg-gray-800 focus:ring-blue-500 mt-0.5"
-                  >
-                  <div class="flex-1">
-                    <span class="font-medium" :class="hasClaudeWorkflow(workflow.id) ? 'text-white' : 'text-gray-300'" x-text="workflow.label"></span>
-                    <p class="text-xs text-gray-500 mt-0.5" x-text="workflow.desc"></p>
-                  </div>
-                </label>
-              </template>
-            </div>
-          </div>
-
+        <!-- Claude Code 输出样式选择 -->
+        <div x-show="hasAiTool('claude-code')" x-transition class="mt-6 max-w-2xl">
           <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
             <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
               <span>🎨</span> 输出样式
@@ -590,6 +563,46 @@
                   </div>
                 </button>
               </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Codex 配置区 -->
+        <div x-show="hasAiTool('codex')" x-transition class="mt-6 max-w-2xl">
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
+              <span>🎨</span> 输出样式
+              <span class="text-xs text-gray-500 font-normal">选择 Codex 的响应风格</span>
+            </h3>
+            <p class="text-xs text-gray-500 mb-3">输出样式将写入 /root/.codex/AGENTS.md，不会写入 /workspace。</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+              <template x-for="style in DEFAULTS.codexOutputStyles" :key="style.id">
+                <button
+                  @click="codexOutputStyle = style.id"
+                  :class="codexOutputStyle === style.id ? 'border-blue-600 bg-blue-950/20' : 'border-gray-700 hover:border-gray-600'"
+                  class="flex items-start gap-2 p-2.5 rounded-lg border text-left transition-all"
+                >
+                  <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5"
+                    :class="codexOutputStyle === style.id ? 'border-blue-600 bg-blue-600' : 'border-gray-600'">
+                    <div x-show="codexOutputStyle === style.id" class="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div class="flex-1">
+                    <span class="font-medium" :class="codexOutputStyle === style.id ? 'text-white' : 'text-gray-300'" x-text="style.label"></span>
+                    <p class="text-xs text-gray-500 mt-0.5" x-text="style.desc"></p>
+                  </div>
+                </button>
+              </template>
+            </div>
+
+            <div x-show="codexOutputStyle === 'custom'" x-transition>
+              <label class="text-xs text-gray-400 block mb-1">自定义 AGENTS.md 内容</label>
+              <textarea
+                x-model="codexCustomAgentsText"
+                placeholder="输入要写入 /root/.codex/AGENTS.md 的内容"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-xs text-gray-300 placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y font-mono"
+                rows="10"
+              ></textarea>
             </div>
           </div>
         </div>
@@ -820,7 +833,7 @@
                   <input
                     type="text"
                     x-model="ossPaths"
-                    placeholder="/root/.ssh,/root/.claude,/root/.cc-switch,/root/.local/share/code-server/User/globalStorage,/root/.vscode-server/data/User/globalStorage"
+                    placeholder="/root/.ssh,/root/.claude,/root/.codex,/root/.cc-switch,/root/.local/share/code-server/User/globalStorage,/root/.vscode-server/data/User/globalStorage"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:border-blue-500 outline-none font-mono"
                   >
                 </div>

@@ -17,6 +17,17 @@ function generateDockerfile(config) {
   const isChina = config.region === 'china';
   const mirrors = DEFAULTS.chinaMirrors;
 
+  const shellSingleQuote = (value) => String(value).replace(/'/g, "'\\''");
+  const appendFileLines = (targetFile, content) => {
+    const normalized = String(content).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const contentLines = normalized.split('\n');
+    const cmds = [`: > ${targetFile}`];
+    contentLines.forEach(line => {
+      cmds.push(`printf '%s\\n' '${shellSingleQuote(line)}' >> ${targetFile}`);
+    });
+    return cmds;
+  };
+
   // --- 层0: FROM + ENV ---
   lines.push(`FROM ${config.baseImage}`);
   lines.push('');
@@ -182,7 +193,7 @@ function generateDockerfile(config) {
     }
     // Vibe 快捷命令（创建脚本方式，比 alias 更可靠）
     if (config.vibeCommand && config.vibeCommandText) {
-      const vibeCmd = config.vibeCommandText.replace(/'/g, "'\\''");
+      const vibeCmd = shellSingleQuote(config.vibeCommandText);
       cmds.push(`echo '#!/bin/bash' > /usr/local/bin/vibe`, `echo '${vibeCmd} "\$@"' >> /usr/local/bin/vibe`, 'chmod +x /usr/local/bin/vibe');
     }
     if (cmds.length) {
@@ -192,7 +203,7 @@ function generateDockerfile(config) {
     }
   }
 
-  // --- 层6b: Claude Code 配置（MCP + 工作流 + 输出风格模板）---
+  // --- 层6b: Claude Code 配置（MCP + 输出风格模板）---
   if (config.aiTools.includes('claude-code')) {
     const claudeCmds = [];
 
@@ -213,7 +224,7 @@ function generateDockerfile(config) {
       }
       const settingsJson = JSON.stringify(settings);
       // 使用 printf 写入，避免 heredoc 在 RUN && 链中断链
-      const escaped = settingsJson.replace(/\\/g, '\\\\').replace(/'/g, "'\\''");
+      const escaped = shellSingleQuote(settingsJson);
       claudeCmds.push(`printf '%s' '${escaped}' > ~/.claude/settings.json`);
     }
 
@@ -235,54 +246,35 @@ function generateDockerfile(config) {
     // MCP Servers
     const mcpServers = (config.claudeMcpServers || []).filter(s => s.name && s.json);
     mcpServers.forEach(mcp => {
-      const safeName = mcp.name.replace(/'/g, "'\\''");
-      const safeJson = mcp.json.replace(/'/g, "'\\''");
+      const safeName = shellSingleQuote(mcp.name);
+      const safeJson = shellSingleQuote(mcp.json);
       claudeCmds.push(`(claude mcp add-json -s user '${safeName}' '${safeJson}' || true)`);
     });
-
-    // 工作流安装
-    const workflows = config.claudeWorkflows || [];
-    if (workflows.includes('zcf')) {
-      claudeCmds.push('mkdir -p ~/.claude/commands/zcf');
-      claudeCmds.push('mkdir -p ~/.claude/agents/zcf');
-
-      const baseUrl = isChina ? URLS.withGhProxy(URLS.zcf.baseUrl) : URLS.zcf.baseUrl;
-
-      const zcfModules = [
-        { commands: ['init-project.md'], agents: ['init-architect.md', 'get-current-datetime.md'], category: 'common' },
-        { commands: ['workflow.md'], agents: [], category: 'sixStep' },
-        { commands: ['feat.md'], agents: ['planner.md', 'ui-ux-designer.md'], category: 'plan' },
-        { commands: ['git-commit.md', 'git-worktree.md', 'git-rollback.md', 'git-cleanBranches.md'], agents: [], category: 'git' },
-        { commands: ['bmad-init.md'], agents: [], category: 'bmad' },
-      ];
-
-      zcfModules.forEach(mod => {
-        mod.commands.forEach(cmd => {
-          let cmdUrl;
-          if (mod.category === 'git') {
-            cmdUrl = `${baseUrl}/common/workflow/git/zh-CN/${cmd}`;
-          } else if (mod.category === 'sixStep') {
-            cmdUrl = `${baseUrl}/common/workflow/sixStep/zh-CN/${cmd}`;
-          } else {
-            cmdUrl = `${baseUrl}/claude-code/zh-CN/workflow/${mod.category}/commands/${cmd}`;
-          }
-          claudeCmds.push(`(curl -sSL "${cmdUrl}" -o ~/.claude/commands/zcf/${cmd} 2>/dev/null || true)`);
-        });
-        if (mod.agents.length > 0) {
-          claudeCmds.push(`mkdir -p ~/.claude/agents/zcf/${mod.category}`);
-          mod.agents.forEach(agent => {
-            const agentUrl = `${baseUrl}/claude-code/zh-CN/workflow/${mod.category}/agents/${agent}`;
-            claudeCmds.push(`(curl -sSL "${agentUrl}" -o ~/.claude/agents/zcf/${mod.category}/${agent} 2>/dev/null || true)`);
-          });
-        }
-      });
-    }
 
     if (claudeCmds.length) {
       lines.push('# 层6b: Claude Code 配置');
       lines.push('RUN ' + claudeCmds.join(' \\\n    && '));
       lines.push('');
     }
+  }
+
+  // --- 层6c: Codex 配置 ---
+  if (config.aiTools.includes('codex')) {
+    const codexCmds = ['mkdir -p /root/.codex'];
+    const style = DEFAULTS.codexOutputStyles.find(s => s.id === config.codexOutputStyle) || DEFAULTS.codexOutputStyles[0];
+    if (style.isUserCustom) {
+      codexCmds.push(...appendFileLines('/root/.codex/AGENTS.md', config.codexCustomAgentsText || ''));
+    } else if (style.isCustom) {
+      const rawStyleUrl = URLS.zcf.outputStyle(style.id);
+      const styleUrl = isChina ? URLS.withGhProxy(rawStyleUrl) : rawStyleUrl;
+      codexCmds.push(`curl -sSL "${styleUrl}" -o /root/.codex/AGENTS.md`);
+    } else {
+      codexCmds.push(...appendFileLines('/root/.codex/AGENTS.md', style.agentsText || DEFAULTS.codexOutputStyles[0].agentsText));
+    }
+
+    lines.push('# 层6c: Codex 配置');
+    lines.push('RUN ' + codexCmds.join(' \\\n    && '));
+    lines.push('');
   }
 
   // --- 自定义层 (插入于层6与层7之间) ---

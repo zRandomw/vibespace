@@ -16,7 +16,7 @@ function appState() {
 
     /* 配置状态 */
     region: 'china',
-  deployPlatform: 'local', // 'local' | 'cnb'
+    deployPlatform: 'local', // 'local' | 'cnb'
     codeServer: true,
     extensions: DEFAULTS.codeServerExtensions.filter(e => e.checked).map(e => e.id),
     customExtensions: '',
@@ -26,10 +26,11 @@ function appState() {
     aiToolVersions: {},
     claudeMcpServers: [],  // [{name: 'my-server', json: '{"type":"http","url":"..."}', jsonValid: true}]
 
-    /* Claude Code 工作流和输出样式 */
-    claudeWorkflows: [],      // 已选中的工作流 ID 数组
+    /* Claude Code 和 Codex 配置 */
     claudeOutputStyle: '',    // 已选中的输出样式 ID
     claudeDisableTelemetry: false, // 禁止遥测与更新
+    codexOutputStyle: 'default',
+    codexCustomAgentsText: '',
     gitUserName: '',
     gitUserEmail: '',
     rootPassword: '',
@@ -54,7 +55,7 @@ function appState() {
     ossBucket: '',
     ossRegion: 'auto',
     ossProject: 'devbox',
-    ossPaths: '/root/.shh,/root/.claude,/root/.cc-switch,/root/.local/share/code-server/User/globalStorage,/root/.vscode-server/data/User/globalStorage',
+    ossPaths: '/root/.ssh,/root/.claude,/root/.codex,/root/.cc-switch,/root/.local/share/code-server/User/globalStorage,/root/.vscode-server/data/User/globalStorage',
     ossKeepCount: 5,
     ossSyncInterval: 5,
 
@@ -73,7 +74,8 @@ function appState() {
         'region', 'deployPlatform', 'codeServer', 'extensions', 'customExtensions',
         'languages', 'languageVersions',
         'aiTools', 'aiToolVersions', 'claudeMcpServers',
-        'claudeWorkflows', 'claudeOutputStyle', 'claudeDisableTelemetry',
+        'claudeOutputStyle', 'claudeDisableTelemetry',
+        'codexOutputStyle', 'codexCustomAgentsText',
         'gitUserName', 'gitUserEmail',
         'cfTunnel', 'cfToken', 'frpcEnabled', 'frpcConfigUrl',
         'vibeCommand', 'vibeCommandText',
@@ -120,10 +122,9 @@ function appState() {
       const idx = this.aiTools.indexOf(toolId);
       if (idx >= 0) {
         this.aiTools.splice(idx, 1);
-        // 取消选中 claude-code 时清空 MCP、工作流、输出样式和遥测配置
+        // 取消选中 claude-code 时清空 MCP、输出样式和遥测配置
         if (toolId === 'claude-code') {
           this.claudeMcpServers = [];
-          this.claudeWorkflows = [];
           this.claudeOutputStyle = '';
           this.claudeDisableTelemetry = false;
           // 同时取消依赖 claude-code 的工具
@@ -132,27 +133,22 @@ function appState() {
             return !t || t.requiresTool !== 'claude-code';
           });
         }
+        if (toolId === 'codex') {
+          this.codexOutputStyle = 'default';
+          this.codexCustomAgentsText = '';
+        }
       } else {
         this.aiTools.push(toolId);
-        // 首次选中 claude-code 时初始化默认工作流
-        if (toolId === 'claude-code' && this.claudeWorkflows.length === 0) {
-          this.claudeWorkflows = DEFAULTS.claudeWorkflows.filter(w => w.defaultSelected).map(w => w.id);
+        // 首次选中 claude-code 时初始化默认输出样式
+        if (toolId === 'claude-code') {
           this.claudeOutputStyle = 'default';
+        }
+        if (toolId === 'codex') {
+          this.codexOutputStyle = 'default';
         }
       }
     },
     hasAiTool(toolId) { return this.aiTools.includes(toolId); },
-
-    /* Claude Code 工作流管理 */
-    toggleClaudeWorkflow(workflowId) {
-      const idx = this.claudeWorkflows.indexOf(workflowId);
-      if (idx >= 0) {
-        this.claudeWorkflows.splice(idx, 1);
-      } else {
-        this.claudeWorkflows.push(workflowId);
-      }
-    },
-    hasClaudeWorkflow(workflowId) { return this.claudeWorkflows.includes(workflowId); },
 
     /* Claude MCP 管理 */
     addMcpServer() {
@@ -218,9 +214,10 @@ function appState() {
       this.aiTools = [...p.aiTools];
       this.aiToolVersions = { ...p.aiToolVersions };
       this.claudeMcpServers = p.claudeMcpServers ? p.claudeMcpServers.map(s => ({...s})) : [];
-      this.claudeWorkflows = p.claudeWorkflows ? [...p.claudeWorkflows] : [];
       this.claudeOutputStyle = p.claudeOutputStyle || '';
       this.claudeDisableTelemetry = p.claudeDisableTelemetry || false;
+      this.codexOutputStyle = p.codexOutputStyle || 'default';
+      this.codexCustomAgentsText = p.codexCustomAgentsText || '';
       this.gitUserName = p.gitUserName || '';
       this.gitUserEmail = p.gitUserEmail || '';
       this.rootPassword = p.rootPassword || '';
@@ -270,8 +267,10 @@ function appState() {
         codeServer: this.codeServer, extensions: this.extensions, customExtensions: this.customExtensions,
         languages: this.languages, languageVersions: this.languageVersions,
         aiTools: this.aiTools, aiToolVersions: this.aiToolVersions, claudeMcpServers: this.claudeMcpServers,
-        claudeWorkflows: this.claudeWorkflows, claudeOutputStyle: this.claudeOutputStyle,
+        claudeOutputStyle: this.claudeOutputStyle,
         claudeDisableTelemetry: this.claudeDisableTelemetry,
+        codexOutputStyle: this.codexOutputStyle,
+        codexCustomAgentsText: this.codexCustomAgentsText,
         gitUserName: this.gitUserName, gitUserEmail: this.gitUserEmail,
         rootPassword: this.rootPassword, csPassword: this.csPassword,
         cfTunnel: this.cfTunnel, cfToken: this.cfToken,
