@@ -140,14 +140,14 @@ const DEFAULTS = {
       label: 'exa',
       desc: '高效的AI搜索服务，需要提供APIKEY',
       name: 'exa',
-      json: '{"type":"http","url":"https://mcp.exa.ai/mcp?exaApiKey=[你的APIKEY]"}',
+      json: '{"type":"http","url":"https://mcp.exa.ai/mcp?exaApiKey=[YOUR_API_KEY]"}',
     },
     {
       id: 'firecrawl',
       label: 'firecrawl',
       desc: '网页爬取工具，需要提供APIKEY',
       name: 'firecrawl',
-      json: '{"type":"http","url":"https://mcp.firecrawl.dev/[你的apikey]/v2/mcp"}',
+      json: '{"type":"http","url":"https://mcp.firecrawl.dev/[YOUR_API_KEY]/v2/mcp"}',
     },
   ],
 

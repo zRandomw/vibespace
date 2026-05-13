@@ -27,6 +27,55 @@ function generateDockerfile(config) {
     });
     return cmds;
   };
+  const sanitizePathPart = (value) => String(value || '').replace(/[^A-Za-z0-9._-]/g, '-').replace(/^-+|-+$/g, '') || 'skill';
+  const isSafeRelativePath = (value) => {
+    const path = String(value || '').replace(/\\/g, '/');
+    return !!path && !path.startsWith('/') && !path.includes('\0') && path.split('/').every(part => part && part !== '..');
+  };
+  const parseMcpJson = (server) => {
+    if (!server || !server.name || !server.json) return null;
+    try {
+      const parsed = JSON.parse(server.json);
+      return { name: server.name, config: parsed };
+    } catch {
+      return null;
+    }
+  };
+  const buildCodexMcpToml = (servers) => {
+    const toml = [];
+    servers.map(parseMcpJson).filter(Boolean).forEach(server => {
+      const name = String(server.name).replace(/"/g, '\\"');
+      const config = server.config || {};
+      toml.push(`[mcp_servers."${name}"]`);
+      if (config.type === 'http' || config.url) {
+        toml.push(`url = ${JSON.stringify(config.url || '')}`);
+      } else {
+        toml.push(`command = ${JSON.stringify(config.command || '')}`);
+        if (Array.isArray(config.args) && config.args.length) {
+          toml.push(`args = ${JSON.stringify(config.args)}`);
+        }
+        if (config.env && Object.keys(config.env).length) {
+          toml.push(`[mcp_servers."${name}".env]`);
+          Object.entries(config.env).forEach(([key, value]) => {
+            toml.push(`${JSON.stringify(key)} = ${JSON.stringify(String(value))}`);
+          });
+        }
+      }
+      toml.push('');
+    });
+    return toml.join('\n').trim();
+  };
+  const appendSkillRestoreCommands = (cmds, targetRoot, skills) => {
+    (skills || []).filter(skill => skill && skill.valid !== false).forEach(skill => {
+      const folderName = sanitizePathPart(skill.folderName);
+      const targetDir = `${targetRoot}/${folderName}`;
+      (skill.files || []).filter(file => isSafeRelativePath(file.path) && file.base64).forEach(file => {
+        const targetFile = `${targetDir}/${String(file.path).replace(/\\/g, '/')}`;
+        cmds.push(`mkdir -p ${targetFile.substring(0, targetFile.lastIndexOf('/'))}`);
+        cmds.push(`printf '%s' '${shellSingleQuote(file.base64)}' | base64 -d > ${targetFile}`);
+      });
+    });
+  };
 
   // --- 层0: FROM + ENV ---
   lines.push(`FROM ${config.baseImage}`);
@@ -251,6 +300,10 @@ function generateDockerfile(config) {
       claudeCmds.push(`(claude mcp add-json -s user '${safeName}' '${safeJson}' || true)`);
     });
 
+    if (config.installClaudeSkills && (config.skills || []).length) {
+      appendSkillRestoreCommands(claudeCmds, '/root/.claude/skills', config.skills);
+    }
+
     if (claudeCmds.length) {
       lines.push('# 层6b: Claude Code 配置');
       lines.push('RUN ' + claudeCmds.join(' \\\n    && '));
@@ -270,6 +323,15 @@ function generateDockerfile(config) {
       codexCmds.push(`curl -sSL "${styleUrl}" -o /root/.codex/AGENTS.md`);
     } else {
       codexCmds.push(...appendFileLines('/root/.codex/AGENTS.md', style.agentsText || DEFAULTS.codexOutputStyles[0].agentsText));
+    }
+
+    const codexMcpToml = buildCodexMcpToml(config.codexMcpServers || []);
+    if (codexMcpToml) {
+      codexCmds.push(...appendFileLines('/root/.codex/config.toml', codexMcpToml));
+    }
+
+    if (config.installCodexSkills && (config.skills || []).length) {
+      appendSkillRestoreCommands(codexCmds, '/root/.codex/skills', config.skills);
     }
 
     lines.push('# 层6c: Codex 配置');

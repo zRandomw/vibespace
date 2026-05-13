@@ -18,6 +18,7 @@
   <!-- 应用脚本 -->
   <script src="js/data/urls.js"></script>
   <script src="js/data/defaults.js"></script>
+  <script src="js/data/mcpSkillsSources.js"></script>
   <script src="js/generators/dockerfile.js"></script>
   <script src="js/generators/entrypoint.js"></script>
   <script src="js/generators/compose.js"></script>
@@ -475,9 +476,9 @@
               <!-- Claude MCP 配置 -->
               <div x-show="tool.hasMcp && hasAiTool(tool.id)" x-transition @click.stop class="mt-3 pt-3 border-t border-gray-700">
                 <div class="flex items-center justify-between mb-2">
-                  <label class="text-xs text-gray-400">MCP Server 配置</label>
+                  <label class="text-xs text-gray-400">Claude MCP 配置</label>
                   <button
-                    @click="addMcpServer()"
+                    @click="addMcpServer('claude-code')"
                     class="text-xs text-blue-400 hover:text-blue-300 px-2 py-0.5 border border-blue-700 rounded hover:bg-blue-950/30"
                   >+ 添加 MCP</button>
                 </div>
@@ -486,11 +487,11 @@
                 <div class="flex flex-wrap gap-2 mb-3">
                   <template x-for="preset in DEFAULTS.mcpPresets" :key="preset.id">
                     <button
-                      @click="toggleMcpPreset(preset)"
-                      :class="hasMcpPreset(preset.id) ? 'border-blue-600 bg-blue-950/30 text-blue-300' : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'"
+                      @click="toggleMcpPreset('claude-code', preset)"
+                      :class="hasMcpPreset('claude-code', preset.id) ? 'border-blue-600 bg-blue-950/30 text-blue-300' : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'"
                       class="flex items-center gap-1.5 px-2.5 py-1 border rounded-lg text-xs transition-all"
                     >
-                      <span x-show="hasMcpPreset(preset.id)" class="text-blue-400">&#10003;</span>
+                      <span x-show="hasMcpPreset('claude-code', preset.id)" class="text-blue-400">&#10003;</span>
                       <span x-text="preset.label"></span>
                       <span class="text-gray-600" x-text="'- ' + preset.desc"></span>
                     </button>
@@ -509,14 +510,14 @@
                       <input
                         type="text"
                         x-model="claudeMcpServers[idx].json"
-                        @input="validateMcpJson(idx)"
-                        @blur="validateMcpJson(idx)"
+                        @input="validateMcpJson('claude-code', idx)"
+                        @blur="validateMcpJson('claude-code', idx)"
                         placeholder='{"command":"npx","args":["-y","pkg@latest"]}'
                         :class="claudeMcpServers[idx].jsonValid === false ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500'"
                         class="bg-gray-800 border rounded px-2 py-1 text-xs text-gray-300 flex-1 outline-none font-mono"
                       >
                       <button
-                        @click="removeMcpServer(idx)"
+                        @click="removeMcpServer('claude-code', idx)"
                         class="text-gray-500 hover:text-red-400 px-1 py-1 text-xs flex-shrink-0"
                         title="删除"
                       >✕</button>
@@ -604,6 +605,116 @@
                 rows="10"
               ></textarea>
             </div>
+          </div>
+
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 mt-4">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <h3 class="text-sm font-bold flex items-center gap-2">
+                <span>🧩</span> Codex MCP
+                <span class="text-xs text-gray-500 font-normal">生成 /root/.codex/config.toml</span>
+              </h3>
+              <button
+                @click="addMcpServer('codex')"
+                class="text-xs text-blue-400 hover:text-blue-300 px-2 py-0.5 border border-blue-700 rounded hover:bg-blue-950/30"
+              >+ 添加 MCP</button>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-3">
+              <template x-for="preset in DEFAULTS.mcpPresets" :key="preset.id">
+                <button
+                  @click="toggleMcpPreset('codex', preset)"
+                  :class="hasMcpPreset('codex', preset.id) ? 'border-blue-600 bg-blue-950/30 text-blue-300' : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'"
+                  class="flex items-center gap-1.5 px-2.5 py-1 border rounded-lg text-xs transition-all"
+                >
+                  <span x-show="hasMcpPreset('codex', preset.id)" class="text-blue-400">&#10003;</span>
+                  <span x-text="preset.label"></span>
+                  <span class="text-gray-600" x-text="'- ' + preset.desc"></span>
+                </button>
+              </template>
+            </div>
+
+            <template x-for="(mcp, idx) in codexMcpServers" :key="idx">
+              <div class="mb-2">
+                <div class="flex gap-2 items-start">
+                  <input
+                    type="text"
+                    x-model="codexMcpServers[idx].name"
+                    placeholder="名称，如 exa"
+                    class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 w-32 focus:border-blue-500 outline-none flex-shrink-0"
+                  >
+                  <input
+                    type="text"
+                    x-model="codexMcpServers[idx].json"
+                    @input="validateMcpJson('codex', idx)"
+                    @blur="validateMcpJson('codex', idx)"
+                    placeholder='{"type":"http","url":"https://..."}'
+                    :class="codexMcpServers[idx].jsonValid === false ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-blue-500'"
+                    class="bg-gray-800 border rounded px-2 py-1 text-xs text-gray-300 flex-1 outline-none font-mono"
+                  >
+                  <button
+                    @click="removeMcpServer('codex', idx)"
+                    class="text-gray-500 hover:text-red-400 px-1 py-1 text-xs flex-shrink-0"
+                    title="删除"
+                  >✕</button>
+                </div>
+                <p x-show="codexMcpServers[idx].jsonValid === false" class="text-xs text-red-400 mt-1">JSON 格式不正确，请检查语法</p>
+              </div>
+            </template>
+            <div x-show="codexMcpServers.length === 0" class="text-xs text-gray-600">
+              选择上方预设或点击「+ 添加 MCP」手动配置。exa、firecrawl 的 API Key 占位符会直接显示在 JSON 输入框中。
+            </div>
+            <div x-show="codexMcpServers.length > 0" class="mt-1">
+              <p class="text-xs text-gray-600">JSON 格式: <code class="bg-gray-800 px-1 rounded text-gray-400">{"command":"npx","args":["-y","pkg@latest"]}</code> 或 <code class="bg-gray-800 px-1 rounded text-gray-400">{"type":"http","url":"https://..."}</code></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 共享 Skills 文件夹导入 -->
+        <div x-show="hasAiTool('claude-code') || hasAiTool('codex')" x-transition class="mt-6 max-w-2xl">
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <h3 class="text-sm font-bold flex items-center gap-2">
+                <span>📁</span> Skills 文件夹导入
+                <span class="text-xs text-gray-500 font-normal">共享配置，按已选工具安装</span>
+              </h3>
+              <label class="text-xs text-blue-300 border border-blue-700 rounded px-2 py-1 hover:bg-blue-950/30 cursor-pointer flex-shrink-0">
+                导入 Skill 文件夹
+                <input type="file" webkitdirectory directory multiple class="hidden" @change="importSkillFolders($event)">
+              </label>
+            </div>
+
+            <div class="bg-gray-950/50 border border-gray-800 rounded-lg p-3 mb-3">
+              <p class="text-xs text-gray-400 mb-1">目标目录</p>
+              <p class="text-xs text-blue-300 font-mono" x-text="getSkillTargetSummary()"></p>
+            </div>
+
+            <template x-for="skill in importedSkills" :key="skill.folderName">
+              <div
+                :class="skill.valid ? 'border-gray-800' : 'border-red-800/70 bg-red-950/20'"
+                class="border rounded-lg p-3 mb-2"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <p class="text-sm font-medium text-gray-100 truncate" x-text="skill.folderName"></p>
+                      <span
+                        :class="skill.valid ? 'text-green-300 bg-green-950/30 border-green-800/50' : 'text-red-300 bg-red-950/30 border-red-800/50'"
+                        class="text-xs px-2 py-0.5 rounded-full border"
+                        x-text="skill.valid ? '有效' : '错误'"
+                      ></span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1" x-text="`${skill.files.length} 个文件，${skill.files.reduce((sum, file) => sum + (file.size || 0), 0)} bytes`"></p>
+                    <p x-show="!skill.valid" class="text-xs text-red-400 mt-1" x-text="skill.error"></p>
+                  </div>
+                  <button @click="removeImportedSkill(skill.folderName)" class="text-xs text-gray-500 hover:text-red-400 flex-shrink-0">删除</button>
+                </div>
+              </div>
+            </template>
+
+            <div x-show="importedSkills.length === 0" class="text-xs text-gray-600 border border-dashed border-gray-800 rounded-lg p-3">
+              尚未导入 Skill 文件夹。选择的目录根部必须包含 <code class="bg-gray-800 px-1 rounded">SKILL.md</code>；如果选择父目录，会批量导入一级子目录中包含 <code class="bg-gray-800 px-1 rounded">SKILL.md</code> 的文件夹。
+            </div>
+            <p x-show="skillImportError" class="text-xs text-red-400 mt-2" x-text="skillImportError"></p>
           </div>
         </div>
 

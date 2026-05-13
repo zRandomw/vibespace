@@ -25,6 +25,9 @@ function appState() {
     aiTools: [],
     aiToolVersions: {},
     claudeMcpServers: [],  // [{name: 'my-server', json: '{"type":"http","url":"..."}', jsonValid: true}]
+    codexMcpServers: [],  // 与 Claude MCP 使用同一套 name + JSON 模型
+    importedSkills: [], // [{folderName, valid, error, files:[{path, base64, size}]}]
+    skillImportError: '',
 
     /* Claude Code 和 Codex 配置 */
     claudeOutputStyle: '',    // 已选中的输出样式 ID
@@ -35,6 +38,7 @@ function appState() {
     gitUserEmail: '',
     rootPassword: '',
     csPassword: '',
+    sshPrivateKey: '',
     sshPublicKey: '',
     cfTunnel: false,
     cfToken: '',
@@ -73,10 +77,10 @@ function appState() {
       const watched = [
         'region', 'deployPlatform', 'codeServer', 'extensions', 'customExtensions',
         'languages', 'languageVersions',
-        'aiTools', 'aiToolVersions', 'claudeMcpServers',
+        'aiTools', 'aiToolVersions', 'claudeMcpServers', 'codexMcpServers', 'importedSkills',
         'claudeOutputStyle', 'claudeDisableTelemetry',
         'codexOutputStyle', 'codexCustomAgentsText',
-        'gitUserName', 'gitUserEmail',
+        'gitUserName', 'gitUserEmail', 'sshPrivateKey',
         'cfTunnel', 'cfToken', 'frpcEnabled', 'frpcConfigUrl',
         'vibeCommand', 'vibeCommandText',
         'volumeMode', 'generateEnvFileEnabled', 'customDockerfile',
@@ -136,6 +140,7 @@ function appState() {
         if (toolId === 'codex') {
           this.codexOutputStyle = 'default';
           this.codexCustomAgentsText = '';
+          this.codexMcpServers = [];
         }
       } else {
         this.aiTools.push(toolId);
@@ -150,15 +155,19 @@ function appState() {
     },
     hasAiTool(toolId) { return this.aiTools.includes(toolId); },
 
-    /* Claude MCP 管理 */
-    addMcpServer() {
-      this.claudeMcpServers.push({ name: '', json: '', jsonValid: true });
+    /* MCP 管理 */
+    getMcpServers(toolId = 'claude-code') {
+      return toolId === 'codex' ? this.codexMcpServers : this.claudeMcpServers;
     },
-    removeMcpServer(index) {
-      this.claudeMcpServers.splice(index, 1);
+    addMcpServer(toolId = 'claude-code') {
+      this.getMcpServers(toolId).push({ name: '', json: '', jsonValid: true });
     },
-    validateMcpJson(idx) {
-      const mcp = this.claudeMcpServers[idx];
+    removeMcpServer(toolId, index) {
+      this.getMcpServers(toolId).splice(index, 1);
+    },
+    validateMcpJson(toolId, idx) {
+      const mcp = this.getMcpServers(toolId)[idx];
+      if (!mcp) return;
       if (!mcp.json.trim()) {
         mcp.jsonValid = true;
         return;
@@ -170,19 +179,137 @@ function appState() {
         mcp.jsonValid = false;
       }
     },
-    hasMcpPreset(presetId) {
-      return this.claudeMcpServers.some(s => s.name === presetId);
+    hasMcpPreset(toolId, presetId) {
+      return this.getMcpServers(toolId).some(s => s.name === presetId);
     },
-    toggleMcpPreset(preset) {
-      const idx = this.claudeMcpServers.findIndex(s => s.name === preset.name);
+    toggleMcpPreset(toolId, preset) {
+      const servers = this.getMcpServers(toolId);
+      const idx = servers.findIndex(s => s.name === preset.name);
       if (idx >= 0) {
-        this.claudeMcpServers.splice(idx, 1);
+        servers.splice(idx, 1);
       } else {
-        this.claudeMcpServers.push({ name: preset.name, json: preset.json, jsonValid: true });
+        servers.push({ name: preset.name, json: preset.json, jsonValid: true });
       }
     },
     hasMcpJsonError() {
-      return this.claudeMcpServers.some(s => s.jsonValid === false);
+      return [...this.claudeMcpServers, ...this.codexMcpServers].some(s => s.jsonValid === false);
+    },
+
+    /* Skills 文件夹导入 */
+    getSkillTargetSummary() {
+      const targets = [];
+      if (this.hasAiTool('claude-code')) targets.push('/root/.claude/skills/<skill-folder>/');
+      if (this.hasAiTool('codex')) targets.push('/root/.codex/skills/<skill-folder>/');
+      return targets.length ? targets.join(' 与 ') : '未选择 Claude Code 或 Codex 时不会安装 Skills';
+    },
+    isSafeRelativePath(path) {
+      const normalized = String(path || '').replace(/\\/g, '/');
+      if (!normalized || normalized.startsWith('/') || normalized.includes('\0')) return false;
+      return normalized.split('/').every(part => part && part !== '..');
+    },
+    async fileToBase64(file) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    },
+    getSkillGroupsFromFiles(files) {
+      const entries = files.map(file => {
+        const rawPath = file.webkitRelativePath || file.name;
+        const path = String(rawPath).replace(/\\/g, '/');
+        return { file, path, parts: path.split('/').filter(Boolean) };
+      }).filter(entry => entry.parts.length > 0);
+
+      const rootSkillEntry = entries.find(entry => entry.parts.length === 2 && entry.parts[1] === 'SKILL.md');
+      if (rootSkillEntry) {
+        const rootFolder = rootSkillEntry.parts[0];
+        return [{
+          folderName: rootFolder,
+          entries: entries
+            .filter(entry => entry.parts[0] === rootFolder && entry.parts.length > 1)
+            .map(entry => ({ file: entry.file, relativePath: entry.parts.slice(1).join('/') })),
+        }];
+      }
+
+      const grouped = new Map();
+      entries.forEach(entry => {
+        if (entry.parts.length < 3) return;
+        const folderName = entry.parts[1];
+        if (!grouped.has(folderName)) grouped.set(folderName, []);
+        grouped.get(folderName).push({ file: entry.file, relativePath: entry.parts.slice(2).join('/') });
+      });
+
+      return [...grouped.entries()]
+        .filter(([, groupEntries]) => groupEntries.some(entry => entry.relativePath === 'SKILL.md'))
+        .map(([folderName, groupEntries]) => ({ folderName, entries: groupEntries }));
+    },
+    async importSkillFolders(event) {
+      const files = Array.from(event.target.files || []);
+      event.target.value = '';
+      if (!files.length) return;
+
+      try {
+        const groups = this.getSkillGroupsFromFiles(files);
+        if (!groups.length) {
+          this.skillImportError = '所选目录根部或一级子目录中未找到 SKILL.md';
+          return;
+        }
+
+        const imported = [];
+        for (const group of groups) {
+          const errors = [];
+          if (!this.isSafeRelativePath(group.folderName)) {
+            errors.push('文件夹名非法');
+          }
+
+          const normalizedFiles = [];
+          for (const entry of group.entries) {
+            if (!this.isSafeRelativePath(entry.relativePath)) {
+              errors.push(`跳过非法路径：${entry.relativePath || '(空路径)'}`);
+              continue;
+            }
+            normalizedFiles.push({
+              path: entry.relativePath,
+              base64: await this.fileToBase64(entry.file),
+              size: entry.file.size,
+            });
+          }
+
+          const hasSkillMd = normalizedFiles.some(file => file.path === 'SKILL.md');
+          if (!hasSkillMd) errors.push('缺少 SKILL.md');
+
+          imported.push({
+            folderName: group.folderName,
+            valid: errors.length === 0,
+            error: errors.join('；'),
+            files: normalizedFiles,
+          });
+        }
+
+        imported.forEach(skill => {
+          const idx = this.importedSkills.findIndex(existing => existing.folderName === skill.folderName);
+          if (idx >= 0) {
+            this.importedSkills.splice(idx, 1, skill);
+          } else {
+            this.importedSkills.push(skill);
+          }
+        });
+
+        const invalid = imported.filter(skill => !skill.valid);
+        this.skillImportError = invalid.length
+          ? invalid.map(skill => `${skill.folderName}: ${skill.error}`).join('；')
+          : '';
+        this.generate();
+      } catch (err) {
+        this.skillImportError = err.message || 'Skill 文件夹导入失败';
+      }
+    },
+    removeImportedSkill(folderName) {
+      const idx = this.importedSkills.findIndex(skill => skill.folderName === folderName);
+      if (idx >= 0) this.importedSkills.splice(idx, 1);
     },
 
     /** AI 工具依赖 Node.js */
@@ -216,12 +343,16 @@ function appState() {
       this.claudeMcpServers = p.claudeMcpServers ? p.claudeMcpServers.map(s => ({...s})) : [];
       this.claudeOutputStyle = p.claudeOutputStyle || '';
       this.claudeDisableTelemetry = p.claudeDisableTelemetry || false;
+      this.codexMcpServers = p.codexMcpServers ? p.codexMcpServers.map(s => ({...s})) : [];
+      this.importedSkills = p.importedSkills ? p.importedSkills.map(s => ({...s, files: (s.files || []).map(file => ({...file}))})) : [];
+      this.skillImportError = '';
       this.codexOutputStyle = p.codexOutputStyle || 'default';
       this.codexCustomAgentsText = p.codexCustomAgentsText || '';
       this.gitUserName = p.gitUserName || '';
       this.gitUserEmail = p.gitUserEmail || '';
       this.rootPassword = p.rootPassword || '';
       this.csPassword = p.csPassword || '';
+      this.sshPrivateKey = p.sshPrivateKey || '';
       this.sshPublicKey = p.sshPublicKey || '';
       this.cfTunnel = p.cfTunnel;
       this.cfToken = p.cfToken;
@@ -271,8 +402,13 @@ function appState() {
         claudeDisableTelemetry: this.claudeDisableTelemetry,
         codexOutputStyle: this.codexOutputStyle,
         codexCustomAgentsText: this.codexCustomAgentsText,
+        codexMcpServers: this.hasAiTool('codex') ? this.codexMcpServers : [],
+        skills: (this.hasAiTool('claude-code') || this.hasAiTool('codex')) ? this.importedSkills.filter(skill => skill.valid) : [],
+        installClaudeSkills: this.hasAiTool('claude-code'),
+        installCodexSkills: this.hasAiTool('codex'),
         gitUserName: this.gitUserName, gitUserEmail: this.gitUserEmail,
         rootPassword: this.rootPassword, csPassword: this.csPassword,
+        sshPrivateKey: this.sshPrivateKey,
         cfTunnel: this.cfTunnel, cfToken: this.cfToken,
         frpcEnabled: this.frpcEnabled, frpcConfigUrl: this.frpcConfigUrl,
         vibeCommand: this.vibeCommand, vibeCommandText: this.vibeCommandText,
