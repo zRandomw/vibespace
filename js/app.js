@@ -59,7 +59,7 @@ function appState() {
     ossBucket: '',
     ossRegion: 'auto',
     ossProject: 'devbox',
-    ossPaths: '/root/.ssh,/root/.claude,/root/.codex,/root/.cc-switch,/root/.local/share/code-server/User/globalStorage,/root/.vscode-server/data/User/globalStorage',
+    ossPaths: '/root/.ssh,/root/.claude,/root/.codex,/root/.agents,/root/.cc-switch,/root/.local/share/code-server/User/globalStorage,/root/.vscode-server/data/User/globalStorage',
     ossKeepCount: 5,
     ossSyncInterval: 5,
 
