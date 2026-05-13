@@ -1,13 +1,13 @@
 # 🚀 Vibe Space
 
-**VibeSoace** — 通过可视化向导，根据你的开发技术栈，选择配置好Skills，MCP，Agent的AI开发工具，一键生成生产可用的安全的容器化Vibe开发环境，支持ClaudeCode，Roo，不再一直需要“回车以允许” ，无需担心AI工具损坏操作系统，内置工作流（也可自定义），无需再为Skills，MCP等技术的快速更新而困扰，放心的Vibe Coding！
+**VibeSoace** — 通过可视化向导，根据你的开发技术栈，配置语言环境、AI 工具、MCP 与 Skills 导入，一键生成生产可用的容器化 Vibe 开发环境。当前支持 Claude Code、Codex CLI、CC-Switch、CCLine 等工具，减少手工拼 Dockerfile、AI 工具配置和容器初始化脚本的成本。
 
 ## 功能特性
 
 - **向导配置** — 地区选择、Code-Server、编程语言、AI 工具、附加工具、自定义层，逐步引导完成配置
 - **区域感知** — 自动配置国内镜像源（apt / npm / pip / Go / GitHub proxy），解决网络问题
 - **多语言支持** — Go、Node.js、Python、Rust、Java、C、C++，支持版本选择与自定义版本号
-- **AI 工具集成** — Claude Code、CCLine、CC-Switch，支持 MCP Server 配置和 ZCF 工作流预设
+- **AI 工具集成** — Claude Code、Codex CLI、CCLine、CC-Switch，支持可编辑 MCP 配置、Claude 输出样式、Codex `AGENTS.md` 和共享 Skills 文件夹导入
 - **双访问模式** — SSH + 浏览器端 Code-Server (VS Code)，灵活选择开发方式
 - **实时预览** — 配置变更即时反映到生成结果，所见即所得
 - **一键导出** — 打包下载 Dockerfile、docker-compose.yml、entrypoint.sh、deploy.sh 四个文件的 ZIP
@@ -18,13 +18,13 @@
 
 ![AI 工具与 MCP Server 配置](assets/img/readme-preview2.png)
 
-![工作流预设与输出样式选择](assets/img/readme-preview3.png)
+![输出样式与 Skills 导入](assets/img/readme-preview3.png)
 
 ## 快速开始
 
 ### 使用方法
 
-通过以下任一方法，进入VibeSpace DIY 页面，根据自己的喜好，选择语言环境，AI工具，Workflow，CC-Switch等工具，生成可一键执行的部署脚本，或部署到CNB ,Github CodeSpace 等
+通过以下任一方法，进入 VibeSpace DIY 页面，根据自己的需求选择语言环境、AI 工具、MCP、Skills 与部署方式，生成可直接使用的部署文件。
 
 方法1：使用已部署的在线页面 [点击此处进入 Vibe Space DIY](https://vibespace.xyzen.de/)
 
@@ -90,8 +90,8 @@ docker exec -it devbox bash   # 进入容器
 支持 7 种语言，每种可选版本：
 
 - **Go** — 官方二进制包安装，附带 gopls / dlv / staticcheck
-- **Node.js** — NodeSource 安装，附带 TypeScript / ts-node
-- **Python** — 系统版本或通过 deadsnakes PPA 指定版本，可选 venv
+- **Node.js** — 通过 nvm 安装，附带 TypeScript / ts-node
+- **Python** — 通过 uv 安装和管理解释器
 - **Rust** — 通过rustup 安装最新稳定版
 - **Java** — OpenJDK，支持 8 / 11 / 17 / 21
 - **C / C++** — GCC / G++，支持指定编译器版本
@@ -99,10 +99,9 @@ docker exec -it devbox bash   # 进入容器
 ### 步骤 4：AI 工具
 
 - **CC-Switch** — Claude Code / Codex 提供商管理工具
-- **Claude Code** — Anthropic CLI 开发工具，支持版本选择、遥测开关
-  - **MCP Server** — 预设 Context7、DeepWiki，或自定义 JSON 配置
-  - **ZCF 工作流** — 通用工具、六步开发、功能规划、Git 工作流、BMAD 企业级
-  - **输出样式** — 默认、工程师专业版、猫又、老王、大小姐、雷姆、雷布斯等风格
+- **Claude Code** — Anthropic CLI 开发工具，支持版本选择、遥测开关、可编辑 MCP 配置和输出样式
+- **Codex CLI** — OpenAI Codex 命令行开发工具，支持版本选择、可编辑 MCP 配置和 `/root/.codex/AGENTS.md` 输出样式
+- **Skills 导入** — Claude Code 与 Codex 共享一份 Skill 文件夹导入列表，按已选工具安装到各自目录
 - **CCLine** — Claude Code 状态行工具（依赖 Claude Code）
 
 ### 步骤 5：其他工具
@@ -135,7 +134,7 @@ docker exec -it devbox bash   # 进入容器
 ├── js/
 │   ├── data/
 │   │   ├── urls.js            # 全局远程资源 URL 注册表
-│   │   └── defaults.js        # 配置常量（语言、工具、预设）
+│   │   └── defaults.js        # 配置常量（语言、工具、MCP 预设、输出样式）
 │   ├── generators/
 │   │   ├── dockerfile.js      # Dockerfile 生成器
 │   │   ├── compose.js         # docker-compose.yml 生成器

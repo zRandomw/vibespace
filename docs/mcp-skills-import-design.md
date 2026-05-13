@@ -35,7 +35,7 @@ MCP 应按配置 JSON 管理，不按市场条目卡片管理。
 UI 行为：
 
 - Claude Code 与 Codex 使用同一套交互模型：预设快捷按钮、`+ 添加 MCP`、可编辑配置行。
-- 提供预设快捷按钮，复用 `DEFAULTS.mcpPresets` 或从 `mcpSkillsSources.js` 迁移出的 MCP preset 数据。
+- 提供预设快捷按钮，复用当前 `DEFAULTS.mcpPresets` 中的 MCP preset 数据。
 - 提供 `+ 添加 MCP`。
 - 每条 MCP 都包含：
   - 名称输入框。
@@ -143,7 +143,7 @@ MCP 和 Skills 不应共用同一种“条目 JSON 导入”交互。
 - 已选条目。
 - Skill 的 JSON 条目导入。
 
-`mcpSkillsSources.js` 后续只能作为 MCP preset 数据迁移来源或兼容数据，不应驱动 Skills 条目选择。
+如后续补充外部 MCP preset 数据源，也只能服务于 MCP 预设补充，不应驱动 Skills 条目选择。
 
 ## UI 原型图
 

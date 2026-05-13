@@ -4,13 +4,14 @@
 
 - [AI 工具与 Codex 配置区计划](ai-tools-codex-plan.md)
 - [MCP 与 Skills 功能计划](mcp-skills-plan.md)
+- [MCP 与 Skills 导入体验设计](mcp-skills-import-design.md)
 - [语言运行时管理计划](language-runtime-management-plan.md)
 
 ## 总体目标
 
 - 扩展 Vibe Space 的 AI 工具能力，首期新增 Codex CLI，并为 Codex 提供独立配置区。
 - 调整旧的 Claude Code 配置体验，删除 ZCF 预设工作流入口，保留输出样式。
-- 增加 MCP / Skills 选择能力，支持默认源、自定义源、JSON 文件导入导出、实时抓取和手动 JSON 导入兜底。
+- 增加 MCP / Skills 配置能力，MCP 使用可编辑 `name + JSON` 模型，Skills 使用文件夹导入模型。
 - 升级语言运行时安装策略：Node/npm 改用 nvm，Python 改用 uv。
 - 保持项目无构建链、纯静态页面、Alpine.js 状态管理和生成器纯函数模式。
 
@@ -35,11 +36,10 @@
 
 ### 阶段 3：MCP / Skills 功能区
 
-- 删除原“预设工作流”区块后，在该区域提供 MCP / Skills 选择能力。
-- 支持默认源、自定义源、JSON 文件导入导出。
-- 支持默认源实时抓取，失败时降级为外链浏览和手动 JSON 导入。
-- 将选中的 MCP / Skills 数据接入 Codex 生成逻辑。
-- 详细计划见 [MCP 与 Skills 功能计划](mcp-skills-plan.md)。
+- 删除原“预设工作流”区块后，在该区域提供 MCP / Skills 配置能力。
+- MCP 使用预设快捷按钮加可编辑 `name + JSON` 输入。
+- Skills 使用共享文件夹导入列表，并按已选工具分别安装到 Claude / Codex 目录。
+- 详细计划见 [MCP 与 Skills 功能计划](mcp-skills-plan.md) 和 [MCP 与 Skills 导入体验设计](mcp-skills-import-design.md)。
 
 ### 阶段 4：统一验证与样例同步
 
@@ -53,7 +53,7 @@
 - 保持无构建步骤，不引入 npm bundler 或后端服务。
 - 生成器继续保持纯函数形态：接收 `config`，返回字符串。
 - 新增远程 URL 优先集中放入 `js/data/urls.js` 或新的数据文件中。
-- 新增默认选项、市场源和工具定义优先放入 `js/data/`。
+- 新增默认选项、工具定义、MCP 预设优先放入 `js/data/`。
 - UI 状态新增后必须同步检查：
   - `appState()` 默认状态。
   - `init()` watcher。
@@ -67,8 +67,8 @@
 
 - nvm 改造先于 Codex CLI 安装，否则 AI 工具依赖的 npm 路径会不稳定。
 - uv 改造可独立实施，但应与 Dockerfile 基础层清理一起完成，避免保留 deadsnakes / pip 旧逻辑。
-- MCP / Skills 功能区可以先做 UI 和 JSON 数据层，再接入 Codex 生成器。
-- Codex MCP / Skills 生成依赖 MCP / Skills 条目结构确定。
+- MCP / Skills 功能区依赖阶段二的 Codex 配置基线。
+- Codex MCP / Skills 生成依赖 MCP `name + JSON` 结构与 Skills 文件夹资产结构确定。
 
 ## 统一验收标准
 
@@ -105,4 +105,4 @@ docker build -f "build-test/Dockerfile" "build-test"
 
 - Gemini CLI、OpenCode 可复用 AI npm 工具安装抽象。
 - 更多部署平台可以在当前 `deployPlatform` 分支模式下扩展。
-- MCP / Skills 源如果出现稳定公开 API，可从最佳努力抓取升级为正式目录同步。
+- 如果后续需要扩展 MCP preset 来源，应保持 Skills 文件夹导入模型不变，避免重新引入旧 market item 方案。
