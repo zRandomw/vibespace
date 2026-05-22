@@ -66,7 +66,7 @@ RUN code-server --install-extension MS-CEINTL.vscode-language-pack-zh-hans \
     && rm -rf /tmp/* /root/.cache
 
 # 层6: AI 工具
-RUN npm install -g @anthropic-ai/claude-code @cometix/ccline @musistudio/claude-code-router \
+RUN npm install -g @anthropic-ai/claude-code @openai/codex @cometix/ccline @musistudio/claude-code-router \
     && npm cache clean --force \
     && CC_SWITCH_FORCE=1 curl -fsSL https://gh-proxy.org/https://github.com/SaladDay/cc-switch-cli/releases/latest/download/install.sh | bash \
     && echo '#!/bin/bash' > /usr/local/bin/vibe \
@@ -84,13 +84,34 @@ RUN mkdir -p ~/.claude \
     && (claude mcp add-json -s user 'exa' '{"type":"http","url":"https://mcp.exa.ai/mcp?exaApiKey=[你的APIKEY]"}' || true) \
     && (claude mcp add-json -s user 'mcp-deepwiki' '{"command":"npx","args":["-y","mcp-deepwiki@latest"]}' || true)
 
+# 层6c: Codex 配置
+RUN mkdir -p /root/.codex \
+    && printf '%s\n' \
+        '# Codex 工作区指南' \
+        '' \
+        '你是运行在 Vibe Space 容器中的 Codex CLI。请优先遵循当前用户项目中的 AGENTS.md、README 和开发文档。' \
+        '' \
+        '## 工作原则' \
+        '' \
+        '- 先阅读相关文件，再修改代码。' \
+        '- 保持改动聚焦，避免无关重构。' \
+        '- 不主动执行 git commit、git push、git reset 或分支操作，除非用户明确要求。' \
+        '- 不写入真实 API Key、Token、SSH 私钥或其他敏感信息。' \
+        '- 生成器、脚本和配置改动完成后，给出可复现的验证步骤。' \
+        '' \
+        '## 项目约定' \
+        '' \
+        '- 纯静态项目保持无构建链风格。' \
+        '- JavaScript 使用 2 空格缩进、单引号和分号。' \
+        '- 注释语言与所在文件保持一致。' \
+        '- 新增远程地址优先集中到 js/data/urls.js。' \
+        '- 生成器保持纯函数形态：接收 config，返回字符串。' \
+    > /root/.codex/AGENTS.md
+
 # 层7: SSH 配置
 RUN mkdir -p /run/sshd \
     && sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-
-# 备份 /root，防止 volume 挂载覆盖镜像内文件
-RUN mkdir /root-defaults && cp -a /root /root-defaults
 
 # 创建 vibespace 管理命令
 RUN echo '#!/bin/bash' > /usr/local/bin/vibespace \
@@ -98,7 +119,11 @@ RUN echo '#!/bin/bash' > /usr/local/bin/vibespace \
     && chmod +x /usr/local/bin/vibespace
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY config.toml /root/.codex/config.toml
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# 备份 /root，防止 volume 挂载覆盖镜像内文件
+RUN mkdir /root-defaults && cp -a /root /root-defaults
 
 WORKDIR /workspace
 EXPOSE 12345 22

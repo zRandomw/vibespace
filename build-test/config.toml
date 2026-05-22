@@ -1,0 +1,16 @@
+model = "gpt-5-codex"
+model_reasoning_effort = "high"
+
+[projects."/workspace"]
+trust_level = "trusted"
+
+[mcp_servers."filesystem"]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem"]
+
+[mcp_servers."context7"]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@latest"]
+
+[mcp_servers."exa"]
+url = "https://mcp.exa.ai/mcp?exaApiKey=[YOUR_API_KEY]"

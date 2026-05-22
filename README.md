@@ -7,10 +7,10 @@
 - **向导配置** — 地区选择、Code-Server、编程语言、AI 工具、附加工具、自定义层，逐步引导完成配置
 - **区域感知** — 自动配置国内镜像源（apt / npm / pip / Go / GitHub proxy），解决网络问题
 - **多语言支持** — Go、Node.js、Python、Rust、Java、C、C++，支持版本选择与自定义版本号
-- **AI 工具集成** — Claude Code、Codex CLI、CCLine、CC-Switch，支持可编辑 MCP 配置、Claude 输出样式、Codex `AGENTS.md` 和共享 Skills 文件夹导入
+- **AI 工具集成** — Claude Code、Codex CLI、CCLine、CC-Switch，支持可编辑 MCP 配置、Claude 输出样式、Codex `config.toml` / `AGENTS.md` 和共享 Skills 文件夹导入
 - **双访问模式** — SSH + 浏览器端 Code-Server (VS Code)，灵活选择开发方式
 - **实时预览** — 配置变更即时反映到生成结果，所见即所得
-- **一键导出** — 打包下载 Dockerfile、docker-compose.yml、entrypoint.sh、deploy.sh 四个文件的 ZIP
+- **一键导出** — 打包下载 Dockerfile、docker-compose.yml、entrypoint.sh、deploy.sh 等部署文件，启用 Codex 配置时包含 `config.toml`
 
 ## 界面预览
 
@@ -69,6 +69,7 @@ docker exec -it devbox bash   # 进入容器
 | `docker-compose.yml` | 容器编排配置，包含端口映射、数据持久化、环境变量 |
 | `entrypoint.sh` | 容器启动脚本，运行时配置 Git、SSH 密钥、密码、生成 README |
 | `deploy.sh` | 一键部署辅助脚本，检查环境并构建镜像 |
+| `config.toml` | Codex CLI 配置文件，仅在生成了 Codex 配置时导出并复制到 `/root/.codex/config.toml` |
 
 ## 配置项详解
 
@@ -100,7 +101,7 @@ docker exec -it devbox bash   # 进入容器
 
 - **CC-Switch** — Claude Code / Codex 提供商管理工具
 - **Claude Code** — Anthropic CLI 开发工具，支持版本选择、遥测开关、可编辑 MCP 配置和输出样式
-- **Codex CLI** — OpenAI Codex 命令行开发工具，支持版本选择、可编辑 MCP 配置和 `/root/.codex/AGENTS.md` 输出样式
+- **Codex CLI** — OpenAI Codex 命令行开发工具，支持版本选择、导入/编辑 `config.toml`、可编辑 MCP 配置和 `/root/.codex/AGENTS.md` 输出样式
 - **Skills 导入** — Claude Code 与 Codex 共享一份 Skill 文件夹导入列表，按已选工具安装到各自目录
 - **CCLine** — Claude Code 状态行工具（依赖 Claude Code）
 

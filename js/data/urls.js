@@ -20,6 +20,7 @@ const URLS = {
       docker: 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-docker.min.js',
       yaml: 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js',
       bash: 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js',
+      toml: 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-toml.min.js',
     },
     jszip: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
   },

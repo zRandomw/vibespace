@@ -32,39 +32,6 @@ function generateDockerfile(config) {
     const path = String(value || '').replace(/\\/g, '/');
     return !!path && !path.startsWith('/') && !path.includes('\0') && path.split('/').every(part => part && part !== '..');
   };
-  const parseMcpJson = (server) => {
-    if (!server || !server.name || !server.json) return null;
-    try {
-      const parsed = JSON.parse(server.json);
-      return { name: server.name, config: parsed };
-    } catch {
-      return null;
-    }
-  };
-  const buildCodexMcpToml = (servers) => {
-    const toml = [];
-    servers.map(parseMcpJson).filter(Boolean).forEach(server => {
-      const name = String(server.name).replace(/"/g, '\\"');
-      const config = server.config || {};
-      toml.push(`[mcp_servers."${name}"]`);
-      if (config.type === 'http' || config.url) {
-        toml.push(`url = ${JSON.stringify(config.url || '')}`);
-      } else {
-        toml.push(`command = ${JSON.stringify(config.command || '')}`);
-        if (Array.isArray(config.args) && config.args.length) {
-          toml.push(`args = ${JSON.stringify(config.args)}`);
-        }
-        if (config.env && Object.keys(config.env).length) {
-          toml.push(`[mcp_servers."${name}".env]`);
-          Object.entries(config.env).forEach(([key, value]) => {
-            toml.push(`${JSON.stringify(key)} = ${JSON.stringify(String(value))}`);
-          });
-        }
-      }
-      toml.push('');
-    });
-    return toml.join('\n').trim();
-  };
   const appendSkillRestoreCommands = (cmds, targetRoot, skills) => {
     (skills || []).filter(skill => skill && skill.valid !== false).forEach(skill => {
       const folderName = sanitizePathPart(skill.folderName);
@@ -325,11 +292,6 @@ function generateDockerfile(config) {
       codexCmds.push(...appendFileLines('/root/.codex/AGENTS.md', style.agentsText || DEFAULTS.codexOutputStyles[0].agentsText));
     }
 
-    const codexMcpToml = buildCodexMcpToml(config.codexMcpServers || []);
-    if (codexMcpToml) {
-      codexCmds.push(...appendFileLines('/root/.codex/config.toml', codexMcpToml));
-    }
-
     if (config.installCodexSkills && (config.skills || []).length) {
       appendSkillRestoreCommands(codexCmds, '/root/.codex/skills', config.skills);
     }
@@ -352,10 +314,6 @@ function generateDockerfile(config) {
   lines.push('    && sed -i \'s/^#*PermitRootLogin.*/PermitRootLogin yes/\' /etc/ssh/sshd_config \\');
   lines.push('    && sed -i \'s/^#*PasswordAuthentication.*/PasswordAuthentication yes/\' /etc/ssh/sshd_config');
   lines.push('');
-  lines.push('# 备份 /root，防止 volume 挂载覆盖镜像内文件');
-  lines.push('RUN mkdir /root-defaults && cp -a /root /root-defaults');
-  lines.push('');
-
   // 创建 vibespace 管理命令脚本（始终生成，方便后期扩展）
   lines.push('# 创建 vibespace 管理命令');
   lines.push('RUN echo \'#!/bin/bash\' > /usr/local/bin/vibespace \\');
@@ -364,8 +322,16 @@ function generateDockerfile(config) {
   lines.push('');
 
   lines.push('COPY entrypoint.sh /usr/local/bin/entrypoint.sh');
+  if (config.aiTools.includes('codex') && config.codexConfigToml && config.codexConfigToml.trim()) {
+    lines.push('COPY config.toml /root/.codex/config.toml');
+  }
   lines.push('RUN chmod +x /usr/local/bin/entrypoint.sh');
   lines.push('');
+
+  lines.push('# 备份 /root，防止 volume 挂载覆盖镜像内文件');
+  lines.push('RUN mkdir /root-defaults && cp -a /root /root-defaults');
+  lines.push('');
+
   lines.push('WORKDIR /workspace');
 
   const ports = [];

@@ -13,6 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-docker.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-toml.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
   <!-- 应用脚本 -->
@@ -21,6 +22,7 @@
   <script src="js/data/mcpSkillsSources.js"></script>
   <script src="js/data/skillsManifest.js"></script>
   <script src="js/generators/dockerfile.js"></script>
+  <script src="js/generators/codexConfig.js"></script>
   <script src="js/generators/entrypoint.js"></script>
   <script src="js/generators/compose.js"></script>
   <script src="js/generators/deploy.js"></script>
@@ -611,8 +613,39 @@
           <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 mt-4">
             <div class="flex items-center justify-between gap-3 mb-3">
               <h3 class="text-sm font-bold flex items-center gap-2">
-                <span>🧩</span> Codex MCP
+                <span>⚙️</span> Codex config.toml
                 <span class="text-xs text-gray-500 font-normal">生成 /root/.codex/config.toml</span>
+              </h3>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button
+                  x-show="codexConfigTomlText || codexConfigTomlFileName"
+                  @click="clearCodexConfigToml()"
+                  class="text-xs text-gray-400 hover:text-red-300 px-2 py-1 border border-gray-700 rounded hover:bg-red-950/20"
+                >清空</button>
+                <label class="text-xs text-blue-300 border border-blue-700 rounded px-2 py-1 hover:bg-blue-950/30 cursor-pointer">
+                  导入 config.toml
+                  <input type="file" accept=".toml,text/plain" class="hidden" @change="importCodexConfigToml($event)">
+                </label>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">可导入已有 Codex 配置并继续编辑；下方 Codex MCP 表单会覆盖同名 MCP 段，其余配置保持原样。</p>
+            <p x-show="codexConfigTomlFileName" class="text-xs text-blue-300 mb-2">
+              已导入：<span class="font-mono" x-text="codexConfigTomlFileName"></span>
+            </p>
+            <p x-show="codexConfigTomlError" class="text-xs text-red-400 mb-2" x-text="codexConfigTomlError"></p>
+            <textarea
+              x-model="codexConfigTomlText"
+              placeholder="# 可粘贴或导入 Codex config.toml；留空时只根据下方 MCP 表单生成"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-xs text-gray-300 placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y font-mono"
+              rows="8"
+            ></textarea>
+          </div>
+
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 mt-4">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <h3 class="text-sm font-bold flex items-center gap-2">
+                <span>🧩</span> Codex MCP
+                <span class="text-xs text-gray-500 font-normal">合并到 config.toml</span>
               </h3>
               <button
                 @click="addMcpServer('codex')"
@@ -1085,7 +1118,7 @@ ENV MY_APP_ENV=production</code></pre>
         <!-- CNB 部署说明 -->
         <div x-show="deployPlatform === 'cnb'" class="bg-gray-900 border border-gray-800 rounded-lg p-3 mb-4">
           <p class="text-xs text-gray-400 mb-2">部署方法：</p>
-          <p class="text-sm text-green-400">将生成的 <span class="text-yellow-400">Dockerfile</span>、<span class="text-yellow-400">entrypoint.sh</span>、<span class="text-yellow-400">.cnb.yml</span> 上传到仓库根目录，点击<strong class="text-white">云原生开发</strong>即可</p>
+          <p class="text-sm text-green-400">将生成的 <span class="text-yellow-400">Dockerfile</span>、<span class="text-yellow-400">entrypoint.sh</span>、<span class="text-yellow-400">.cnb.yml</span><span x-show="generatedCodexConfigToml && generatedCodexConfigToml.trim()">、<span class="text-yellow-400">config.toml</span></span> 上传到仓库根目录，点击<strong class="text-white">云原生开发</strong>即可</p>
         </div>
 
         <!-- 标签页 -->
@@ -1118,6 +1151,12 @@ ENV MY_APP_ENV=production</code></pre>
             :class="outputTab === 'envfile' ? 'active' : ''"
             class="tab-btn px-4 py-2 text-sm text-gray-400 hover:text-white border-b-2 border-transparent"
           >.env</button>
+          <button
+            x-show="generatedCodexConfigToml && generatedCodexConfigToml.trim()"
+            @click="outputTab = 'codex-config'"
+            :class="outputTab === 'codex-config' ? 'active' : ''"
+            class="tab-btn px-4 py-2 text-sm text-gray-400 hover:text-white border-b-2 border-transparent"
+          >config.toml</button>
           <button
             x-show="deployPlatform === 'cnb'"
             @click="outputTab = 'cnb'"
@@ -1187,6 +1226,20 @@ ENV MY_APP_ENV=production</code></pre>
           </div>
           <div class="code-preview bg-gray-900 rounded-lg border border-gray-800 overflow-auto">
             <pre><code class="language-bash" x-text="generatedEnvFile"></code></pre>
+          </div>
+        </div>
+
+        <!-- config.toml (Codex) -->
+        <div x-show="outputTab === 'codex-config' && generatedCodexConfigToml && generatedCodexConfigToml.trim()">
+          <div class="flex justify-end gap-2 mb-2">
+            <button id="copy-codex-config" @click="copyToClipboard(generatedCodexConfigToml, 'copy-codex-config')" class="copy-btn text-xs text-gray-400 hover:text-white px-3 py-1 bg-gray-800 rounded">复制</button>
+            <button @click="downloadFile('config.toml', generatedCodexConfigToml)" class="text-xs text-gray-400 hover:text-white px-3 py-1 bg-gray-800 rounded">下载</button>
+          </div>
+          <div class="bg-blue-950/30 border border-blue-800/50 rounded-lg p-3 mb-3">
+            <p class="text-blue-300 text-xs">此文件会复制到容器内 /root/.codex/config.toml；请勿写入真实 API Key 或私钥。</p>
+          </div>
+          <div class="code-preview bg-gray-900 rounded-lg border border-gray-800 overflow-auto">
+            <pre><code class="language-toml" x-text="generatedCodexConfigToml"></code></pre>
           </div>
         </div>
 

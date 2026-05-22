@@ -36,6 +36,9 @@ function appState() {
     claudeDisableTelemetry: false, // 禁止遥测与更新
     codexOutputStyle: 'default',
     codexCustomAgentsText: '',
+    codexConfigTomlText: '',
+    codexConfigTomlFileName: '',
+    codexConfigTomlError: '',
     gitUserName: '',
     gitUserEmail: '',
     rootPassword: '',
@@ -72,6 +75,7 @@ function appState() {
     generatedDeploy: '',
     generatedCnbYml: '',
     generatedEnvFile: '',
+    generatedCodexConfigToml: '',
 
     /** 初始化：加载默认预设，监听配置变更自动重新生成 */
     async init() {
@@ -82,7 +86,7 @@ function appState() {
         'languages', 'languageVersions',
         'aiTools', 'aiToolVersions', 'claudeMcpServers', 'codexMcpServers', 'importedSkills',
         'claudeOutputStyle', 'claudeDisableTelemetry',
-        'codexOutputStyle', 'codexCustomAgentsText',
+        'codexOutputStyle', 'codexCustomAgentsText', 'codexConfigTomlText',
         'gitUserName', 'gitUserEmail', 'sshPrivateKey',
         'cfTunnel', 'cfToken', 'frpcEnabled', 'frpcConfigUrl',
         'vibeCommand', 'vibeCommandText',
@@ -144,6 +148,10 @@ function appState() {
         if (toolId === 'codex') {
           this.codexOutputStyle = 'default';
           this.codexCustomAgentsText = '';
+          this.codexConfigTomlText = '';
+          this.codexConfigTomlFileName = '';
+          this.codexConfigTomlError = '';
+          this.generatedCodexConfigToml = '';
           this.codexMcpServers = [];
         }
       } else {
@@ -197,6 +205,28 @@ function appState() {
     },
     hasMcpJsonError() {
       return [...this.claudeMcpServers, ...this.codexMcpServers].some(s => s.jsonValid === false);
+    },
+
+    /* Codex config.toml 导入 */
+    async importCodexConfigToml(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      try {
+        this.codexConfigTomlText = await file.text();
+        this.codexConfigTomlFileName = file.name;
+        this.codexConfigTomlError = '';
+        this.generate();
+      } catch (err) {
+        this.codexConfigTomlError = err.message || 'config.toml 读取失败';
+      }
+    },
+    clearCodexConfigToml() {
+      this.codexConfigTomlText = '';
+      this.codexConfigTomlFileName = '';
+      this.codexConfigTomlError = '';
+      this.generate();
     },
 
     /* Skills 文件夹导入 */
@@ -453,6 +483,9 @@ function appState() {
       this.skillImportError = '';
       this.codexOutputStyle = p.codexOutputStyle || 'default';
       this.codexCustomAgentsText = p.codexCustomAgentsText || '';
+      this.codexConfigTomlText = p.codexConfigTomlText || '';
+      this.codexConfigTomlFileName = p.codexConfigTomlFileName || '';
+      this.codexConfigTomlError = '';
       this.gitUserName = p.gitUserName || '';
       this.gitUserEmail = p.gitUserEmail || '';
       this.rootPassword = p.rootPassword || '';
@@ -473,24 +506,30 @@ function appState() {
     /** 调用生成器，刷新语法高亮 */
     generate() {
       const config = this.getConfig();
+      this.generatedCodexConfigToml = this.hasAiTool('codex') ? generateCodexConfigToml(config) : '';
+      const outputConfig = {
+        ...config,
+        codexConfigToml: this.generatedCodexConfigToml,
+      };
+
       // 所有平台都生成 Dockerfile 和 entrypoint.sh
-      this.generatedDockerfile = generateDockerfile(config);
-      this.generatedEntrypoint = generateEntrypoint(config);
+      this.generatedDockerfile = generateDockerfile(outputConfig);
+      this.generatedEntrypoint = generateEntrypoint(outputConfig);
 
       // 根据部署平台生成不同文件
       switch (this.deployPlatform) {
         case 'cnb': // CNB 云平台
           this.generatedCompose = '';
           this.generatedDeploy = '';
-          this.generatedCnbYml = generateCnbYml(config);
+          this.generatedCnbYml = generateCnbYml(outputConfig);
           this.generatedEnvFile = '';
           break;
         case 'local': // 本机/Docker
         default:
-          this.generatedCompose = generateCompose(config);
-          this.generatedDeploy = generateDeploy(config);
+          this.generatedCompose = generateCompose(outputConfig);
+          this.generatedDeploy = generateDeploy(outputConfig);
           this.generatedCnbYml = '';
-          this.generatedEnvFile = this.generateEnvFileEnabled ? generateEnvFile(config) : '';
+          this.generatedEnvFile = this.generateEnvFileEnabled ? generateEnvFile(outputConfig) : '';
           break;
       }
       this.$nextTick(() => highlightAll());
@@ -507,6 +546,7 @@ function appState() {
         claudeDisableTelemetry: this.claudeDisableTelemetry,
         codexOutputStyle: this.codexOutputStyle,
         codexCustomAgentsText: this.codexCustomAgentsText,
+        codexConfigTomlText: this.hasAiTool('codex') ? this.codexConfigTomlText : '',
         codexMcpServers: this.hasAiTool('codex') ? this.codexMcpServers : [],
         skills: (this.hasAiTool('claude-code') || this.hasAiTool('codex'))
           ? this.importedSkills.filter(skill => skill.valid && skill.enabled !== false)
@@ -579,6 +619,9 @@ function appState() {
             files['.env'] = this.generatedEnvFile;
           }
           break;
+      }
+      if (this.generatedCodexConfigToml && this.generatedCodexConfigToml.trim()) {
+        files['config.toml'] = this.generatedCodexConfigToml;
       }
       await downloadAllAsZip(files);
     },
