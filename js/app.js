@@ -120,6 +120,13 @@ function appState() {
         if (lang && lang.hasVersion && !this.languageVersions[langId]) {
           this.languageVersions[langId] = lang.defaultVersion;
         }
+        if (lang && lang.extraVersions) {
+          lang.extraVersions.forEach(extra => {
+            if (!this.languageVersions[extra.id]) {
+              this.languageVersions[extra.id] = extra.defaultVersion;
+            }
+          });
+        }
       }
     },
     hasLanguage(langId) { return this.languages.includes(langId); },

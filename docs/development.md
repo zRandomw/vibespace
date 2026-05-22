@@ -142,7 +142,7 @@ function generateX(config) {
 
 ### 新增编程语言
 
-1. 在 `js/data/defaults.js` 的 `DEFAULTS.languages` 中新增语言定义，包括 `id`、`label`、`icon`、版本信息、安装说明和 apt 依赖。
+1. 在 `js/data/defaults.js` 的 `DEFAULTS.languages` 中新增语言定义，包括 `id`、`label`、`icon`、版本信息、安装说明和 apt 依赖；如果是随语言安装的构建工具版本，优先挂到对应语言的 `extraVersions`。
 2. 如果语言有特殊安装流程，在 `js/generators/dockerfile.js` 中补充对应安装逻辑。
 3. 如果语言需要额外启动时配置，在 `js/generators/entrypoint.js` 中补充。
 4. 检查 `index.html` 中语言选择 UI 是否能自动展示该语言。

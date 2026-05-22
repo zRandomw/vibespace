@@ -57,6 +57,10 @@ function generateDockerfile(config) {
   const pathParts = ['$PATH'];
   if (config.languages.includes('go')) pathParts.push('/usr/local/go/bin', '/root/go/bin');
   pathParts.push('/root/.local/bin');
+  if (config.languages.includes('java')) {
+    envVars.push('MAVEN_HOME=/opt/maven');
+    pathParts.push('/opt/maven/bin');
+  }
   if (config.needsNodejs) {
     envVars.push('NVM_DIR=/root/.nvm', 'NVM_SYMLINK_CURRENT=true');
     pathParts.push('/root/.nvm/current/bin');
@@ -119,6 +123,13 @@ function generateDockerfile(config) {
     const pythonVer = config.languageVersions.python || DEFAULTS.languages.find(l => l.id === 'python').defaultVersion;
     runtime.push(`curl -LsSf ${URLS.languages.python.uvInstall} | sh`);
     runtime.push(`uv python install ${pythonVer} --default`);
+  }
+  if (config.languages.includes('java')) {
+    const mavenVer = config.languageVersions.maven || URLS.languages.maven.latest;
+    runtime.push(`wget -q ${URLS.languages.maven.download(mavenVer)}`);
+    runtime.push(`tar -C /opt -xzf apache-maven-${mavenVer}-bin.tar.gz`);
+    runtime.push(`ln -s /opt/apache-maven-${mavenVer} /opt/maven`);
+    runtime.push(`rm -f apache-maven-${mavenVer}-bin.tar.gz`);
   }
   if (config.languages.includes('go')) {
     const goUrl = isChina

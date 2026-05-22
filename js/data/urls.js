@@ -44,6 +44,17 @@ const URLS = {
     python: {
       uvInstall: 'https://astral.sh/uv/install.sh',
     },
+    maven: {
+      latest: '3.9.16',
+      /** @param {string} ver — Maven 版本号，如 '3.9.16' */
+      download: (ver = '3.9.16') => {
+        const major = String(ver).split('.')[0] || '3';
+        const baseUrl = ver === '3.9.16'
+          ? 'https://dlcdn.apache.org'
+          : 'https://archive.apache.org/dist';
+        return `${baseUrl}/maven/maven-${major}/${ver}/binaries/apache-maven-${ver}-bin.tar.gz`;
+      },
+    },
     go: {
       /** @param {string} ver — 完整版本号，如 '1.23.6' 或 Dockerfile 变量 '${GOLANG_VERSION}' */
       download: (ver) => `https://go.dev/dl/go${ver}.linux-amd64.tar.gz`,

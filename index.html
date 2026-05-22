@@ -353,7 +353,7 @@
       <!-- 步骤 3: 编程语言 -->
       <div x-show="currentStep === 3" x-transition class="fade-in">
         <h2 class="text-xl font-bold mb-2">🛠️ 编程语言</h2>
-        <p class="text-gray-500 text-sm mb-6">选择需要安装的编程语言环境（可多选）。仅包含语言运行时，不含框架。</p>
+        <p class="text-gray-500 text-sm mb-6">选择需要安装的编程语言环境和常用构建工具（可多选）。仅包含基础运行时/工具链，不含框架。</p>
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-w-3xl">
           <template x-for="lang in DEFAULTS.languages" :key="lang.id">
@@ -377,34 +377,40 @@
 
         <!-- 语言版本选择（通用组件：遍历所有已选中且支持版本选择的语言） -->
         <template x-for="lang in DEFAULTS.languages.filter(l => l.hasVersion && hasLanguage(l.id))" :key="lang.id + '-version'">
-          <div x-transition class="mt-4 max-w-md">
-            <label class="text-sm text-gray-400 block mb-1" x-text="lang.label + ' 版本'"></label>
-            <div class="flex gap-2 items-center">
-              <select
-                :value="languageVersions[lang.id] || lang.defaultVersion"
-                @change="languageVersions[lang.id] = $event.target.value"
-                class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:border-blue-500 outline-none"
-              >
-                <template x-for="ver in lang.versions" :key="lang.id + '-' + ver">
-                  <option :value="ver" x-text="ver === 'system' ? '系统默认' : lang.label.split(' ')[0] + ' ' + ver"></option>
-                </template>
-              </select>
-              <!-- 自定义版本输入 -->
-              <input
-                type="text"
-                :value="lang.versions.includes(languageVersions[lang.id] || lang.defaultVersion) ? '' : (languageVersions[lang.id] || '')"
-                @input="if($event.target.value.trim()) languageVersions[lang.id] = $event.target.value.trim()"
-                placeholder="自定义版本号"
-                class="w-36 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-blue-500 outline-none"
-              >
-            </div>
-            <!-- 安装方式说明 -->
-            <p x-show="lang.installNote" class="text-xs text-gray-500 mt-1.5" x-text="'安装方式: ' + lang.installNote"></p>
-            <!-- 用户自行确保提示 -->
-            <div class="bg-yellow-950/20 border border-yellow-800/30 rounded-lg p-2 mt-2">
-              <p class="text-xs text-yellow-300/80 flex items-center gap-1">
-                <span>⚠️</span> 请确认所选版本号正确且可用，错误的版本号将导致构建失败
-              </p>
+          <div x-transition class="mt-4 max-w-2xl">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <template x-for="versionItem in [lang, ...(lang.extraVersions || [])]" :key="lang.id + '-' + versionItem.id + '-version'">
+                <div>
+                  <label class="text-sm text-gray-400 block mb-1" x-text="(versionItem.versionLabel || versionItem.label) + ' 版本'"></label>
+                  <div class="flex gap-2 items-center">
+                    <select
+                      :value="languageVersions[versionItem.id] || versionItem.defaultVersion"
+                      @change="languageVersions[versionItem.id] = $event.target.value"
+                      class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:border-blue-500 outline-none"
+                    >
+                      <template x-for="ver in versionItem.versions" :key="versionItem.id + '-' + ver">
+                        <option :value="ver" x-text="ver === 'system' ? '系统默认' : (versionItem.versionLabel || versionItem.label).split(' ')[0] + ' ' + ver"></option>
+                      </template>
+                    </select>
+                    <!-- 自定义版本输入 -->
+                    <input
+                      type="text"
+                      :value="versionItem.versions.includes(languageVersions[versionItem.id] || versionItem.defaultVersion) ? '' : (languageVersions[versionItem.id] || '')"
+                      @input="if($event.target.value.trim()) languageVersions[versionItem.id] = $event.target.value.trim()"
+                      placeholder="自定义版本号"
+                      class="w-36 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-blue-500 outline-none"
+                    >
+                  </div>
+                  <!-- 安装方式说明 -->
+                  <p x-show="versionItem.installNote" class="text-xs text-gray-500 mt-1.5" x-text="'安装方式: ' + versionItem.installNote"></p>
+                  <!-- 用户自行确保提示 -->
+                  <div class="bg-yellow-950/20 border border-yellow-800/30 rounded-lg p-2 mt-2">
+                    <p class="text-xs text-yellow-300/80 flex items-center gap-1">
+                      <span>⚠️</span> 请确认所选版本号正确且可用，错误的版本号将导致构建失败
+                    </p>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>

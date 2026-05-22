@@ -5,11 +5,12 @@ ENV LANG=C.UTF-8 \
     GOLANG_VERSION=1.23.6 \
     GOPATH=/root/go \
     GOPROXY=https://goproxy.cn,direct \
+    MAVEN_HOME=/opt/maven \
     NVM_DIR=/root/.nvm \
     NVM_SYMLINK_CURRENT=true \
     UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
     PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-    PATH=$PATH:/usr/local/go/bin:/root/go/bin:/root/.local/bin:/root/.nvm/current/bin:/root/.cargo/bin
+    PATH=$PATH:/usr/local/go/bin:/root/go/bin:/root/.local/bin:/opt/maven/bin:/root/.nvm/current/bin:/root/.cargo/bin
 
 # 层1: 系统包 + 基础工具
 RUN apt-get update \
@@ -26,6 +27,10 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | b
     && . "$NVM_DIR/nvm.sh" && nvm install 24 && nvm alias default 24 && nvm use default \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && uv python install 3.12 --default \
+    && wget -q https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.tar.gz \
+    && tar -C /opt -xzf apache-maven-3.9.16-bin.tar.gz \
+    && ln -s /opt/apache-maven-3.9.16 /opt/maven \
+    && rm -f apache-maven-3.9.16-bin.tar.gz \
     && wget -q https://golang.google.cn/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz \
     && tar -C /usr/local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz \
     && rm -f go${GOLANG_VERSION}.linux-amd64.tar.gz \

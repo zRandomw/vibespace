@@ -27,6 +27,7 @@ const DEFAULTS = {
    *   hasVersion: 是否支持版本选择
    *   versions: 可选版本列表
    *   installNote: 安装方式说明，提示用户确认版本可用性
+   *   extraVersions: 随该语言一同配置的工具版本
    */
   languages: [
     {
@@ -56,10 +57,20 @@ const DEFAULTS = {
       aptPkgs: ['make', 'build-essential', 'cmake'], devTools: [],
     },
     {
-      id: 'java', label: 'Java', icon: '☕',
+      id: 'java', label: 'Java / Maven', icon: '☕',
       hasVersion: true, defaultVersion: '21',
+      versionLabel: 'Java',
       versions: ['21', '17', '11', '8'],
-      installNote: '通过 apt 安装 OpenJDK，请确认基础镜像源中包含对应版本',
+      installNote: 'Java 通过 apt 安装 OpenJDK，Maven 通过官方二进制包安装',
+      extraVersions: [
+        {
+          id: 'maven',
+          label: 'Maven',
+          defaultVersion: URLS.languages.maven.latest,
+          versions: [URLS.languages.maven.latest, '3.9.15', '3.9.14', '3.9.13'],
+          installNote: '通过官方二进制包安装，版本号需与 Apache Maven 发布版本一致',
+        },
+      ],
       aptPkgs: [], devTools: [],
     },
     {

@@ -6,7 +6,7 @@
 
 - **向导配置** — 地区选择、Code-Server、编程语言、AI 工具、附加工具、自定义层，逐步引导完成配置
 - **区域感知** — 自动配置国内镜像源（apt / npm / pip / Go / GitHub proxy），解决网络问题
-- **多语言支持** — Go、Node.js、Python、Rust、Java、C、C++，支持版本选择与自定义版本号
+- **多语言支持** — Go、Node.js、Python、Rust、Java/Maven、C、C++，支持版本选择与自定义版本号
 - **AI 工具集成** — Claude Code、Codex CLI、CCLine、CC-Switch，支持可编辑 MCP 配置、Claude 输出样式、Codex `config.toml` / `AGENTS.md` 和共享 Skills 文件夹导入
 - **双访问模式** — SSH + 浏览器端 Code-Server (VS Code)，灵活选择开发方式
 - **实时预览** — 配置变更即时反映到生成结果，所见即所得
@@ -88,13 +88,13 @@ docker exec -it devbox bash   # 进入容器
 
 ### 步骤 3：编程语言
 
-支持 7 种语言，每种可选版本：
+支持 7 种语言组合，部分可选版本：
 
 - **Go** — 官方二进制包安装，附带 gopls / dlv / staticcheck
 - **Node.js** — 通过 nvm 安装，附带 TypeScript / ts-node
 - **Python** — 通过 uv 安装和管理解释器
 - **Rust** — 通过rustup 安装最新稳定版
-- **Java** — OpenJDK，支持 8 / 11 / 17 / 21
+- **Java / Maven** — Java 通过 OpenJDK 安装，支持 8 / 11 / 17 / 21；Maven 支持版本选择
 - **C / C++** — GCC / G++，支持指定编译器版本
 
 ### 步骤 4：AI 工具
