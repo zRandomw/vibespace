@@ -19,6 +19,7 @@
   <script src="js/data/urls.js"></script>
   <script src="js/data/defaults.js"></script>
   <script src="js/data/mcpSkillsSources.js"></script>
+  <script src="js/data/skillsManifest.js"></script>
   <script src="js/generators/dockerfile.js"></script>
   <script src="js/generators/entrypoint.js"></script>
   <script src="js/generators/compose.js"></script>
@@ -675,12 +676,18 @@
             <div class="flex items-center justify-between gap-3 mb-3">
               <h3 class="text-sm font-bold flex items-center gap-2">
                 <span>📁</span> Skills 文件夹导入
-                <span class="text-xs text-gray-500 font-normal">共享配置，按已选工具安装</span>
+                <span class="text-xs text-gray-500 font-normal">自动读取 skills/，按已选工具安装</span>
               </h3>
-              <label class="text-xs text-blue-300 border border-blue-700 rounded px-2 py-1 hover:bg-blue-950/30 cursor-pointer flex-shrink-0">
-                导入 Skill 文件夹
-                <input type="file" webkitdirectory directory multiple class="hidden" @change="importSkillFolders($event)">
-              </label>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button
+                  @click="loadBuiltinSkills()"
+                  class="text-xs text-gray-300 border border-gray-700 rounded px-2 py-1 hover:bg-gray-800"
+                >重新读取 skills/</button>
+                <label class="text-xs text-blue-300 border border-blue-700 rounded px-2 py-1 hover:bg-blue-950/30 cursor-pointer">
+                  导入 Skill 文件夹
+                  <input type="file" webkitdirectory directory multiple class="hidden" @change="importSkillFolders($event)">
+                </label>
+              </div>
             </div>
 
             <div class="bg-gray-950/50 border border-gray-800 rounded-lg p-3 mb-3">
@@ -688,33 +695,54 @@
               <p class="text-xs text-blue-300 font-mono" x-text="getSkillTargetSummary()"></p>
             </div>
 
+            <p x-show="builtinSkillLoading" class="text-xs text-gray-500 mb-2">正在读取项目 skills/ 目录...</p>
+            <p x-show="builtinSkillError" class="text-xs text-red-400 mb-2" x-text="builtinSkillError"></p>
+
             <template x-for="skill in importedSkills" :key="skill.folderName">
               <div
-                :class="skill.valid ? 'border-gray-800' : 'border-red-800/70 bg-red-950/20'"
+                :class="skill.valid ? (skill.enabled === false ? 'border-gray-800 bg-gray-950/30 opacity-70' : 'border-gray-800') : 'border-red-800/70 bg-red-950/20'"
                 class="border rounded-lg p-3 mb-2"
               >
                 <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-2">
-                      <p class="text-sm font-medium text-gray-100 truncate" x-text="skill.folderName"></p>
-                      <span
-                        :class="skill.valid ? 'text-green-300 bg-green-950/30 border-green-800/50' : 'text-red-300 bg-red-950/30 border-red-800/50'"
-                        class="text-xs px-2 py-0.5 rounded-full border"
-                        x-text="skill.valid ? '有效' : '错误'"
-                      ></span>
+                  <div class="flex items-start gap-3 min-w-0">
+                    <input
+                      type="checkbox"
+                      class="mt-1 rounded border-gray-700 bg-gray-900 text-blue-600 focus:ring-blue-500"
+                      :checked="skill.enabled !== false"
+                      @change="setImportedSkillEnabled(skill.folderName, $event.target.checked)"
+                    >
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <p class="text-sm font-medium text-gray-100 truncate" x-text="skill.folderName"></p>
+                        <span
+                          :class="isBuiltinSkill(skill) ? 'text-blue-300 bg-blue-950/30 border-blue-800/50' : 'text-purple-300 bg-purple-950/30 border-purple-800/50'"
+                          class="text-xs px-2 py-0.5 rounded-full border"
+                          x-text="isBuiltinSkill(skill) ? '内置' : '导入'"
+                        ></span>
+                        <span
+                          :class="skill.valid ? 'text-green-300 bg-green-950/30 border-green-800/50' : 'text-red-300 bg-red-950/30 border-red-800/50'"
+                          class="text-xs px-2 py-0.5 rounded-full border"
+                          x-text="skill.valid ? '有效' : '错误'"
+                        ></span>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1" x-text="`${skill.files.length} 个文件，${skill.files.reduce((sum, file) => sum + (file.size || 0), 0)} bytes`"></p>
+                      <p x-show="!skill.valid" class="text-xs text-red-400 mt-1" x-text="skill.error"></p>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1" x-text="`${skill.files.length} 个文件，${skill.files.reduce((sum, file) => sum + (file.size || 0), 0)} bytes`"></p>
-                    <p x-show="!skill.valid" class="text-xs text-red-400 mt-1" x-text="skill.error"></p>
                   </div>
-                  <button @click="removeImportedSkill(skill.folderName)" class="text-xs text-gray-500 hover:text-red-400 flex-shrink-0">删除</button>
+                  <button
+                    x-show="!isBuiltinSkill(skill)"
+                    @click="removeImportedSkill(skill.folderName)"
+                    class="text-xs text-gray-500 hover:text-red-400 flex-shrink-0"
+                  >删除</button>
                 </div>
               </div>
             </template>
 
             <div x-show="importedSkills.length === 0" class="text-xs text-gray-600 border border-dashed border-gray-800 rounded-lg p-3">
-              尚未导入 Skill 文件夹。选择的目录根部必须包含 <code class="bg-gray-800 px-1 rounded">SKILL.md</code>；如果选择父目录，会批量导入一级子目录中包含 <code class="bg-gray-800 px-1 rounded">SKILL.md</code> 的文件夹。
+              尚未读取到 Skill。页面会自动读取项目 <code class="bg-gray-800 px-1 rounded">skills/</code> 清单；也可以导入根部包含 <code class="bg-gray-800 px-1 rounded">SKILL.md</code> 的 Skill 文件夹，或批量导入一级子目录中包含 <code class="bg-gray-800 px-1 rounded">SKILL.md</code> 的父目录。
             </div>
             <p x-show="skillImportError" class="text-xs text-red-400 mt-2" x-text="skillImportError"></p>
+            <p class="text-xs text-gray-600 mt-2">需要把导入的 Skill 永久加入项目 skills/ 时，运行 <code class="bg-gray-800 px-1 rounded">node scripts/sync-skills.js "&lt;目录&gt;"</code>。</p>
           </div>
         </div>
 

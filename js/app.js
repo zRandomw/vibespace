@@ -26,8 +26,10 @@ function appState() {
     aiToolVersions: {},
     claudeMcpServers: [],  // [{name: 'my-server', json: '{"type":"http","url":"..."}', jsonValid: true}]
     codexMcpServers: [],  // 与 Claude MCP 使用同一套 name + JSON 模型
-    importedSkills: [], // [{folderName, valid, error, files:[{path, base64, size}]}]
+    importedSkills: [], // [{folderName, valid, error, enabled, source, files:[{path, base64, size}]}]
     skillImportError: '',
+    builtinSkillLoading: false,
+    builtinSkillError: '',
 
     /* Claude Code 和 Codex 配置 */
     claudeOutputStyle: '',    // 已选中的输出样式 ID
@@ -72,8 +74,9 @@ function appState() {
     generatedEnvFile: '',
 
     /** 初始化：加载默认预设，监听配置变更自动重新生成 */
-    init() {
-      this.applyPreset('default');
+    async init() {
+      this.applyPreset('default', { skipGenerate: true });
+      await this.loadBuiltinSkills({ skipGenerate: true });
       const watched = [
         'region', 'deployPlatform', 'codeServer', 'extensions', 'customExtensions',
         'languages', 'languageVersions',
@@ -88,6 +91,7 @@ function appState() {
         'ossRegion', 'ossProject', 'ossPaths', 'ossKeepCount', 'ossSyncInterval',
       ];
       watched.forEach(key => this.$watch(key, () => this.generate()));
+      this.generate();
     },
 
     /* 步骤导航 */
@@ -202,6 +206,90 @@ function appState() {
       if (this.hasAiTool('codex')) targets.push('/root/.codex/skills/<skill-folder>/');
       return targets.length ? targets.join(' 与 ') : '未选择 Claude Code 或 Codex 时不会安装 Skills';
     },
+    isBuiltinSkill(skill) {
+      return skill.source === 'builtin';
+    },
+    normalizeSkillFiles(files) {
+      return (files || []).map(file => ({ ...file }));
+    },
+    mergeSkills(skills) {
+      (skills || []).forEach(skill => {
+        const existingIdx = this.importedSkills.findIndex(existing => existing.folderName === skill.folderName);
+        const existing = existingIdx >= 0 ? this.importedSkills[existingIdx] : null;
+        const merged = {
+          ...skill,
+          enabled: existing && Object.prototype.hasOwnProperty.call(existing, 'enabled')
+            ? existing.enabled
+            : true,
+          files: this.normalizeSkillFiles(skill.files),
+        };
+
+        if (existingIdx >= 0) {
+          this.importedSkills.splice(existingIdx, 1, merged);
+        } else {
+          this.importedSkills.push(merged);
+        }
+      });
+    },
+    setImportedSkillEnabled(folderName, enabled) {
+      const skill = this.importedSkills.find(item => item.folderName === folderName);
+      if (!skill) return;
+      skill.enabled = enabled;
+      this.generate();
+    },
+    async fetchBuiltinSkillFile(file) {
+      if (file.base64) return { ...file };
+      const response = await fetch(file.sourcePath);
+      if (!response.ok) {
+        throw new Error(`读取失败：${file.sourcePath}`);
+      }
+      return {
+        path: file.path,
+        base64: await this.fileToBase64(await response.blob()),
+        size: Number(response.headers.get('content-length')) || file.size || 0,
+      };
+    },
+    async loadBuiltinSkills(options = {}) {
+      if (typeof DEFAULT_SKILLS_MANIFEST === 'undefined' || !Array.isArray(DEFAULT_SKILLS_MANIFEST)) return;
+
+      this.builtinSkillLoading = true;
+      this.builtinSkillError = '';
+      try {
+        const skills = [];
+        for (const item of DEFAULT_SKILLS_MANIFEST) {
+          const errors = [];
+          if (!this.isSafeRelativePath(item.folderName)) {
+            errors.push('文件夹名非法');
+          }
+
+          const files = [];
+          for (const file of item.files || []) {
+            if (!this.isSafeRelativePath(file.path)) {
+              errors.push(`跳过非法路径：${file.path || '(空路径)'}`);
+              continue;
+            }
+            files.push(await this.fetchBuiltinSkillFile(file));
+          }
+
+          if (!files.some(file => file.path === 'SKILL.md')) errors.push('缺少 SKILL.md');
+
+          skills.push({
+            folderName: item.folderName,
+            valid: errors.length === 0,
+            error: errors.join('；'),
+            enabled: true,
+            source: 'builtin',
+            files,
+          });
+        }
+        this.mergeSkills(skills);
+        if (!options.skipGenerate) this.generate();
+      } catch (err) {
+        this.builtinSkillError = err.message || '内置 Skills 读取失败';
+      } finally {
+        this.builtinSkillLoading = false;
+      }
+    },
     isSafeRelativePath(path) {
       const normalized = String(path || '').replace(/\\/g, '/');
       if (!normalized || normalized.startsWith('/') || normalized.includes('\0')) return false;
@@ -222,6 +310,21 @@ function appState() {
         const path = String(rawPath).replace(/\\/g, '/');
         return { file, path, parts: path.split('/').filter(Boolean) };
       }).filter(entry => entry.parts.length > 0);
+
+      const skillsRootEntry = entries.find(entry => entry.parts.length >= 3 && entry.parts[0] === 'skills' && entry.parts[2] === 'SKILL.md');
+      if (skillsRootEntry) {
+        const groupedSkills = new Map();
+        entries.forEach(entry => {
+          if (entry.parts.length < 3 || entry.parts[0] !== 'skills') return;
+          const folderName = entry.parts[1];
+          if (!groupedSkills.has(folderName)) groupedSkills.set(folderName, []);
+          groupedSkills.get(folderName).push({ file: entry.file, relativePath: entry.parts.slice(2).join('/') });
+        });
+
+        return [...groupedSkills.entries()]
+          .filter(([, groupEntries]) => groupEntries.some(entry => entry.relativePath === 'SKILL.md'))
+          .map(([folderName, groupEntries]) => ({ folderName, entries: groupEntries }));
+      }
 
       const rootSkillEntry = entries.find(entry => entry.parts.length === 2 && entry.parts[1] === 'SKILL.md');
       if (rootSkillEntry) {
@@ -285,18 +388,13 @@ function appState() {
             folderName: group.folderName,
             valid: errors.length === 0,
             error: errors.join('；'),
+            enabled: true,
+            source: 'imported',
             files: normalizedFiles,
           });
         }
 
-        imported.forEach(skill => {
-          const idx = this.importedSkills.findIndex(existing => existing.folderName === skill.folderName);
-          if (idx >= 0) {
-            this.importedSkills.splice(idx, 1, skill);
-          } else {
-            this.importedSkills.push(skill);
-          }
-        });
+        this.mergeSkills(imported);
 
         const invalid = imported.filter(skill => !skill.valid);
         this.skillImportError = invalid.length
@@ -309,7 +407,7 @@ function appState() {
     },
     removeImportedSkill(folderName) {
       const idx = this.importedSkills.findIndex(skill => skill.folderName === folderName);
-      if (idx >= 0) this.importedSkills.splice(idx, 1);
+      if (idx >= 0 && !this.isBuiltinSkill(this.importedSkills[idx])) this.importedSkills.splice(idx, 1);
     },
 
     /** AI 工具依赖 Node.js */
@@ -328,7 +426,7 @@ function appState() {
     },
 
     /** 应用预设：深拷贝配置并触发生成 */
-    applyPreset(presetId) {
+    applyPreset(presetId, options = {}) {
       const p = DEFAULTS.presets[presetId];
       if (!p) return;
       this.currentPreset = presetId;
@@ -344,7 +442,14 @@ function appState() {
       this.claudeOutputStyle = p.claudeOutputStyle || '';
       this.claudeDisableTelemetry = p.claudeDisableTelemetry || false;
       this.codexMcpServers = p.codexMcpServers ? p.codexMcpServers.map(s => ({...s})) : [];
-      this.importedSkills = p.importedSkills ? p.importedSkills.map(s => ({...s, files: (s.files || []).map(file => ({...file}))})) : [];
+      this.importedSkills = p.importedSkills
+        ? p.importedSkills.map(s => ({
+          ...s,
+          enabled: Object.prototype.hasOwnProperty.call(s, 'enabled') ? s.enabled : true,
+          source: s.source || 'preset',
+          files: (s.files || []).map(file => ({...file})),
+        }))
+        : [];
       this.skillImportError = '';
       this.codexOutputStyle = p.codexOutputStyle || 'default';
       this.codexCustomAgentsText = p.codexCustomAgentsText || '';
@@ -362,7 +467,7 @@ function appState() {
       this.vibeCommandText = p.vibeCommandText;
       this.volumeMode = p.volumeMode || 'named';
       this.customDockerfile = p.customDockerfile || '';
-      this.generate();
+      if (!options.skipGenerate) this.generate();
     },
 
     /** 调用生成器，刷新语法高亮 */
@@ -403,7 +508,9 @@ function appState() {
         codexOutputStyle: this.codexOutputStyle,
         codexCustomAgentsText: this.codexCustomAgentsText,
         codexMcpServers: this.hasAiTool('codex') ? this.codexMcpServers : [],
-        skills: (this.hasAiTool('claude-code') || this.hasAiTool('codex')) ? this.importedSkills.filter(skill => skill.valid) : [],
+        skills: (this.hasAiTool('claude-code') || this.hasAiTool('codex'))
+          ? this.importedSkills.filter(skill => skill.valid && skill.enabled !== false)
+          : [],
         installClaudeSkills: this.hasAiTool('claude-code'),
         installCodexSkills: this.hasAiTool('codex'),
         gitUserName: this.gitUserName, gitUserEmail: this.gitUserEmail,
