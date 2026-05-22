@@ -295,10 +295,6 @@ function generateDockerfile(config) {
     const style = DEFAULTS.codexOutputStyles.find(s => s.id === config.codexOutputStyle) || DEFAULTS.codexOutputStyles[0];
     if (style.isUserCustom) {
       codexCmds.push(...appendFileLines('/root/.codex/AGENTS.md', config.codexCustomAgentsText || ''));
-    } else if (style.isCustom) {
-      const rawStyleUrl = URLS.zcf.outputStyle(style.id);
-      const styleUrl = isChina ? URLS.withGhProxy(rawStyleUrl) : rawStyleUrl;
-      codexCmds.push(`curl -sSL "${styleUrl}" -o /root/.codex/AGENTS.md`);
     } else {
       codexCmds.push(...appendFileLines('/root/.codex/AGENTS.md', style.agentsText || DEFAULTS.codexOutputStyles[0].agentsText));
     }

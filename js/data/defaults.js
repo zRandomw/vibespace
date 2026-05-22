@@ -252,44 +252,8 @@ const DEFAULTS = {
 - 生成器保持纯函数形态：接收 config，返回字符串。`,
     },
     {
-      id: 'engineer-professional',
-      label: '工程师专业版（UfoMiao/zcf）',
-      desc: '遵循SOLID、KISS、DRY、YAGNI原则，专业简洁',
-      isCustom: true,
-    },
-    {
-      id: 'nekomata-engineer',
-      label: '猫又工程师（UfoMiao/zcf）',
-      desc: '可爱但专业的工程师风格',
-      isCustom: true,
-    },
-    {
-      id: 'laowang-engineer',
-      label: '老王工程师（UfoMiao/zcf）',
-      desc: '资深工程师风格，经验丰富',
-      isCustom: true,
-    },
-    {
-      id: 'ojousama-engineer',
-      label: '大小姐工程师（UfoMiao/zcf）',
-      desc: '优雅专业的工程师风格',
-      isCustom: true,
-    },
-    {
-      id: 'rem-engineer',
-      label: '雷姆工程师（UfoMiao/zcf）',
-      desc: '温柔专业的工程师风格',
-      isCustom: true,
-    },
-    {
-      id: 'leibus-engineer',
-      label: '雷布斯工程师（UfoMiao/zcf）',
-      desc: '极客风格的工程师',
-      isCustom: true,
-    },
-    {
       id: 'explanatory',
-      label: '解释型（Claudecode官方提供）',
+      label: '解释型',
       desc: '详细解释每一步操作',
       isCustom: false,
       agentsText: `# Codex 解释型输出样式
@@ -311,7 +275,7 @@ const DEFAULTS = {
     },
     {
       id: 'learning',
-      label: '学习型（Claudecode官方提供）',
+      label: '学习型',
       desc: '适合学习新技术的风格',
       isCustom: false,
       agentsText: `# Codex 学习型输出样式
