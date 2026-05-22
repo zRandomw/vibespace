@@ -68,7 +68,7 @@ jobs:
         run: docker compose -f build-test/docker-compose.yml config --quiet
 
       - name: Lint Dockerfile
-        run: docker run --rm -i hadolint/hadolint:latest-alpine --failure-threshold error - < build-test/Dockerfile
+        run: docker run --rm -i hadolint/hadolint:latest-alpine hadolint --failure-threshold error - < build-test/Dockerfile
 
       - name: Build image
         uses: docker/build-push-action@v6
