@@ -13,8 +13,5 @@ coverage/
 skills/
 .playwright-mcp/
 .zcf/*
-!.zcf/plan/
-.zcf/plan/*
-!.zcf/plan/history/
-.zcf/plan/history/*
-!.zcf/plan/history/*.md
+docs/
+
